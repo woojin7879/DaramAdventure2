@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>보스 체험 · 다람이의 모험 2</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/lab.css" />
+  </head>
+  <body class="lab-page" data-boss-trial="true">
+    <header class="lab-header">
+      <div>
+        <small>DEVELOPER PLAYGROUND</small>
+        <h1>보스 체험</h1>
+      </div>
+      <a href="/">← 시작 화면</a>
+    </header>
+    <main class="lab-layout">
+      <aside class="lab-controls">
+        <label
+          >연차 / 맵
+          <select id="lab-year">
+            <option value="1">1년차 · 귀환의 숲</option>
+            <option value="2">2년차 · 물길 너머의 숲</option>
+            <option value="3">3년차 · 오래된 뿌리의 숲</option>
+          </select></label
+        >
+        <h2>보스 설정</h2>
+        <label>시작 체력 단계<select id="boss-stage"><option value="1">100% · 1페이즈</option><option value="0.49">49% · 2페이즈</option><option value="0.2">20% · 3페이즈</option></select></label>
+        <label class="lab-check"><input id="boss-invincible" type="checkbox" checked> 무적 · 패턴 관찰</label>
+        <div class="lab-row"><button id="boss-build">추천 6무기 Lv.5</button><button id="boss-heal">체력 회복</button></div>
+        <p>보스전 시점의 난이도로 시작합니다. 무적을 끄면 사망할 수 있습니다. 저장·해금에는 반영되지 않습니다.</p>
+        <h2>무기 선택</h2>
+        <p>선택 즉시 교체 · 전투 기록과 저장에 영향 없음</p>
+        <div id="lab-weapons" class="lab-weapons"></div>
+        <label class="lab-check"
+          ><input id="lab-stack" type="checkbox" /> 추가 장착 모드 (최대
+          6칸)</label
+        >
+        <label
+          >선택한 무기 레벨 <output id="lab-level-value"></output
+          ><input id="lab-level" type="range" min="1" max="8" value="1"
+        /></label>
+        <p id="lab-description"></p>
+        <div class="lab-row">
+          <button id="lab-max">장착 무기 최대 강화</button
+          ><button id="lab-clear">무기 비우기</button>
+        </div>
+        <h2>전투 재시작</h2>
+        <div hidden><select id="lab-target"><option value="boss" selected>보스</option></select><select id="lab-count"><option>1</option></select><output id="lab-distance-value">300</output><input id="lab-distance" value="300"></div>
+        <div class="lab-row"><button id="lab-spawn">보스전 다시 시작</button><button id="lab-hit">피격 테스트</button></div>
+        <h2>패시브</h2>
+        <div id="lab-passives"></div>
+        <div class="lab-row">
+          <button id="lab-reset">테스트 초기화</button
+          ><button id="lab-pause">일시정지</button>
+        </div>
+        <p id="lab-status" role="status">
+          WASD / 방향키 이동 · 무적을 끄면 실제 피해를 받습니다.
+        </p>
+      </aside>
+      <section class="lab-play">
+        <div class="lab-stage">
+          <canvas
+            id="game"
+            tabindex="0"
+            aria-label="보스 체험 필드. WASD 또는 방향키로 이동"
+          ></canvas>
+          <div class="lab-caption">
+            WASD / 방향키 이동 · 자동 공격 · 일반 몹 생성 / 레벨업 없음
+          </div>
+        </div>
+        <div id="boss-telemetry" class="boss-telemetry" role="status"></div>
+        <div id="lab-equipped" class="lab-equipped"></div>
+        <div class="lab-row">
+          <h2>실시간 측정</h2>
+          <button id="lab-stats-reset">측정 초기화</button>
+        </div>
+        <div id="lab-metrics" aria-live="off"></div>
+        <p>
+          피격 테스트는 부적 차단·재충전을 확인합니다. 장착 목록을 누르면 해당
+          무기를 제거합니다. 보스 처치나 사망 후 ‘보스전 다시 시작’을 눌러 계속
+          시험하세요.
+        </p>
+      </section>
+    </main>
+    <script type="module" src="/src/lab.js"></script>
+  </body>
+</html>

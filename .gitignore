@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+dist/
+.sites-runtime/
+.env*
+
+# Local design-tool history
+.hallmark/

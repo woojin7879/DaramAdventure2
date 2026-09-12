@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#14251d" />
+    <meta
+      name="description"
+      content="다람이와 함께 사계절을 살아남는 브라우저 생존 액션 게임. 이동하고, 성장하고, 긴 겨울을 이겨내세요."
+    />
+    <title>다람이의 모험 2 · Darami Adventure 2</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231c3326'/%3E%3Ctext x='16' y='23' text-anchor='middle' fill='%23eed5a0' font-size='23'%3E✦%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <a class="wordmark" href="/" aria-label="다람이의 모험 2 시작 화면"
+        ><span class="brand-mark">✦</span
+        ><span>DARAMI <b>ADVENTURE 2</b></span></a
+      ><span class="edition">다람이의 모험, 그다음 이야기</span>
+      <div class="top-actions">
+        <button
+          id="sound"
+          class="icon-button"
+          aria-label="소리 켜기"
+          aria-pressed="false"
+        >
+          소리 꺼짐</button
+        ><button id="help" class="icon-button" aria-label="조작법 보기">
+          조작법 <span>?</span>
+        </button>
+      </div>
+    </header>
+    <main id="game-shell" class="game-shell">
+      <canvas
+        id="game"
+        aria-label="다람이 생존 게임. WASD 또는 방향키로 이동합니다."
+        tabindex="0"
+      ></canvas>
+      <div id="loading" class="loading">
+        <span class="loader"></span>
+        <p>숲을 깨우는 중…</p>
+      </div>
+      <section id="title-screen" class="title-screen" hidden>
+        <div class="title-copy">
+          <div class="eyebrow"><span></span> 첫 번째 겨울잠, 그 이후</div>
+          <p class="small-title">DARAMI ADVENTURE II</p>
+          <h1>
+            다람이의<br /><span>모험 <em class="sequel-number">2</em></span
+            ><i class="title-star" aria-hidden="true">✦</i>
+          </h1>
+          <p class="title-description">작은 발걸음으로, 긴 겨울 너머까지.</p>
+          <div class="run-choice" role="group" aria-label="플레이 시간">
+            <button class="selected" id="normal-mode" aria-pressed="true">
+              한 해 살아남기 <small>20분 + 보스</small></button
+            ><button id="quick-mode" aria-pressed="false">
+              빠른 체험 <small>5분 + 보스</small>
+            </button>
+          </div>
+          <button id="start" class="start-button">
+            숲으로 들어가기 <span>↗</span></button
+          ><button id="continue" class="continue-button" hidden>
+            저장한 계절 이어하기 →
+          </button>
+          <a class="continue-button" href="/lab.html"
+            >관리자 · 무기 테스트 ↗</a
+          >
+          <label class="story-year-label"
+            >이야기
+            <select id="story-year" aria-label="미리 볼 연차">
+              <option value="1">1년차</option>
+              <option value="2">2년차</option>
+              <option value="3">3년차</option>
+            </select></label
+          >
+          <a class="continue-button" href="/boss.html">관리자 · 보스 체험 →</a>
+          <button id="story-preview" class="continue-button admin-preview">
+            관리자 · 스토리 미리보기 ↗
+          </button>
+          <div class="control-hint">
+            <span
+              ><kbd>W</kbd
+              ><span class="keys-row"
+                ><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span
+              ></span
+            ><span>이동만 하세요.<br /><b>공격은 다람이가 할게요.</b></span>
+          </div>
+        </div>
+        <div class="chapter-note">
+          <span class="eyebrow">CHAPTER 01</span>
+          <h2>귀환의 숲</h2>
+          <p>봄 · 여름 · 가을 · 겨울</p>
+          <div class="chapter-line"></div>
+          <span class="chapter-detail">12종의 무기 · 6칸의 선택</span>
+        </div>
+        <div class="chapter-strip">
+          <div class="chapter active">
+            <span>01</span>
+            <div><b>귀환의 숲</b><small>1년차</small></div>
+            <span class="chapter-dot"></span>
+          </div>
+          <div class="chapter locked">
+            <span>02</span>
+            <div>
+              <b>물길 너머의 숲</b><small>이전 연차 클리어 후 해금</small>
+            </div>
+            <span>◇</span>
+          </div>
+          <div class="chapter locked">
+            <span>03</span>
+            <div>
+              <b>오래된 뿌리의 숲</b><small>이전 연차 클리어 후 해금</small>
+            </div>
+            <span>◇</span>
+          </div>
+        </div>
+      </section>
+      <div id="hud" class="hud" hidden>
+        <div class="hud-top">
+          <div class="health-box">
+            <div class="hud-label">
+              <b>다람이</b><span id="health-text">100 / 100</span>
+            </div>
+            <div class="health-track"><div id="health-fill"></div></div>
+            <span id="power-label"></span>
+          </div>
+          <div class="season-clock">
+            <span id="season-label">1년차 · 봄</span
+            ><strong id="timer">05:00</strong>
+            <div class="season-dots" id="season-dots">
+              <i></i><i></i><i></i><i></i>
+            </div>
+          </div>
+          <div class="kill-box">
+            <span>처치</span><b id="kills">0</b
+            ><button id="pause" class="icon-button" aria-label="일시정지">
+              Ⅱ
+            </button>
+          </div>
+        </div>
+        <div class="xp-line">
+          <span id="level">LV. 1</span>
+          <div class="xp-track"><i id="xp-fill"></i></div>
+          <span id="xp-text">0 / 11</span>
+        </div>
+        <div id="boss-hud" class="boss-hud" hidden>
+          <span>겨울곰의 잔영</span>
+          <div><i id="boss-fill"></i></div>
+        </div>
+        <div class="hud-bottom">
+          <div
+            id="weapon-slots"
+            class="weapon-slots"
+            aria-label="장착 무기"
+          ></div>
+          <div id="passive-slots" class="passive-slots"></div>
+          <span class="pause-hint"><kbd>ESC</kbd> 일시정지</span>
+        </div>
+      </div>
+      <div id="toast" role="status" class="toast" hidden></div>
+      <div id="season-banner" class="season-banner" hidden>
+        <span id="banner-en"></span><strong id="banner-name"></strong>
+        <p id="banner-sub"></p>
+      </div>
+      <section
+        id="modal"
+        class="modal"
+        hidden
+        aria-modal="true"
+        role="dialog"
+        aria-labelledby="modal-title"
+      >
+        <div class="modal-inner" id="modal-content"></div>
+      </section>
+      <div class="touch-pad" id="touch-pad" hidden>
+        <button data-dir="up" aria-label="위로 이동">↑</button
+        ><button data-dir="left" aria-label="왼쪽 이동">←</button
+        ><button data-dir="down" aria-label="아래로 이동">↓</button
+        ><button data-dir="right" aria-label="오른쪽 이동">→</button>
+      </div>
+    </main>
+    <footer class="footer">
+      <span>다람이의 모험에서 이어지는 작은 생존기</span
+      ><span id="record">첫 번째 발자국을 남겨보세요.</span
+      ><span class="version">PLAYABLE DRAFT · 0.7</span>
+    </footer>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
