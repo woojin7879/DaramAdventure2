@@ -25,9 +25,10 @@ export function resultDetails(report) {
     mushroom: "버섯",
     bat: "박쥐",
     boar: "멧돼지",
-    boss: chapter(report.year || 1).bossName,
+    boss: report.mode === "hell" ? "연차 보스 합계" : chapter(report.year || 1).bossName,
   };
   return `<section class="run-details" aria-label="전투 상세 기록">
+    ${report.mode === "hell" ? `<h3>헬 모드 · 보스 ${report.hellBossKills.length}회 격파</h3><p class="stat-note">${report.time >= 1800 ? `30분 돌파 · 추가 생존 ${clock(report.time - 1800)}` : `첫 30분 보스 러시 · ${clock(report.time)} 생존`}</p><ol class="growth-history">${report.hellBossKills.map(b => `<li><time>${clock(b.time)}</time><span>${chapter(b.year).bossName}</span><small>격파</small></li>`).join("") || '<li>아직 격파한 보스가 없습니다.</li>'}</ol>` : ""}
     <h3>무기별 활약 <small>총 피해 ${number(total)}</small></h3>
     <p class="stat-note">남은 체력만큼의 실제 피해 · DPS는 획득 후 전투 시간 기준${report.since ? ` · 이전 저장은 ${clock(report.since)} 이후만 집계` : ""}</p>
     <div class="damage-table"><table><thead><tr><th>무기</th><th>피해량 / 비중</th><th>DPS</th><th>처치</th></tr></thead><tbody>${rows

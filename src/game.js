@@ -1,5 +1,6 @@
 import { ringHits } from "./chapter-combat.js";
 import { yearDifficulty } from "./difficulty.js";
+import { hellDifficulty, hellBudget, hellBossYear, hellBossTime } from "./hell.js";
 import { chapter, inWater } from "./chapters.js";
 import { updateChapterBoss, addPool, addRoot } from "./chapter-combat.js";
 import { bodyCenter, stoneOrbit, distanceToSegment } from "./geometry.js";
@@ -59,16 +60,19 @@ export class Game {
     this.reset(false);
     this.state = "title";
   }
-  reset(quick = false, year = 1) {
+  reset(quick = false, year = 1, mode = "story") {
     if (!Number.isInteger(year) || year < 1 || year > 3)
       throw Error("Invalid year");
     this.year = year;
+    this.mode = mode === "hell" ? "hell" : "story";
+    this.hellBossIndex = 0;
+    this.hellBossKills = [];
     this.environmentClock = 14;
     this.quick = quick;
     this.sandbox = false;
     this.sandboxMortal = false;
     this.sandboxInvincible = false;
-    this.seasonDuration = quick ? 75 : 300;
+    this.seasonDuration = this.mode === "hell" ? 450 : quick ? 75 : 300;
     this.time = 0;
     this.season = 0;
     this.level = 1;
@@ -120,8 +124,9 @@ export class Game {
     this.state = "playing";
     this.addWeapon("acorn");
   }
-  start(quick = false, snapshot = null, year = 1) {
-    this.reset(quick, year);
+  start(quick = false, snapshot = null, year = 1, mode = "story") {
+    if (mode === "hell" && snapshot) throw Error("Hell runs cannot resume checkpoints");
+    this.reset(mode === "hell" ? false : quick, mode === "hell" ? 1 : year, mode);
     if (snapshot) this.restore(snapshot);
     this.onEvent("start");
   }
@@ -197,6 +202,8 @@ export class Game {
     return {
       ...structuredClone(this.runStats),
       year: this.year,
+      mode: this.mode,
+      hellBossKills: structuredClone(this.hellBossKills),
       time: this.time,
       level: this.level,
       kills: this.kills,
@@ -287,10 +294,10 @@ export class Game {
       this.onEvent("resume");
     }
   }
-  spawn(type = "snake", elite = false) {
+  spawn(type = "snake", elite = false, bossYear = this.year) {
     const base =
       type === "boss"
-        ? { ...ENEMIES.boss, hp: chapter(this.year).bossHp }
+        ? { ...ENEMIES.boss, hp: chapter(bossYear).bossHp }
         : ENEMIES[type];
     const a = this.random() * Math.PI * 2;
     const radius = Math.hypot(this.view.w, this.view.h) * 0.52 + 60;
@@ -308,13 +315,14 @@ export class Game {
       x = clamp(p.x + Math.cos(retry) * radius, 35, WORLD - 35);
       y = clamp(p.y + Math.sin(retry) * radius, 35, WORLD - 35);
     }
-    const progress = Math.min(1, this.time / (this.seasonDuration * 4));
-    const tuning = yearDifficulty(this.year, progress);
+    const progress = Math.min(1, this.time / (this.mode === "hell" ? 1200 : this.seasonDuration * 4));
+    const tuning = this.mode === "hell" ? hellDifficulty(this.time) : yearDifficulty(this.year, progress);
     const scale = type === "boss" ? 1.65 * tuning.bossHealth : (0.85 + 6.2 * progress ** 1.55) * tuning.health;
     const e = {
       ...base,
       type,
-      bossKind: type === "boss" ? chapter(this.year).bossKind : null,
+      bossKind: type === "boss" ? chapter(bossYear).bossKind : null,
+      bossYear: type === "boss" ? bossYear : null,
       id: ++this.id,
       x,
       y,
@@ -334,7 +342,7 @@ export class Game {
       heading: Math.atan2(p.y - y, p.x - x),
       age: 0,
       skillClock: 2 + this.random() * 3,
-      speed: base.speed * (type === "boss" ? 1 : 1 + progress * 0.35),
+      speed: base.speed * (type === "boss" ? 1 : (1 + progress * 0.35) * (tuning.speed || 1)),
       damage: base.damage * (1 + progress * 0.55),
     };
     if (elite) {
@@ -416,7 +424,7 @@ export class Game {
       this.onEvent("block");
       return;
     }
-    n *= yearDifficulty(this.year, this.time / (this.seasonDuration * 4)).damage;
+    n *= this.mode === "hell" ? hellDifficulty(this.time).damage : yearDifficulty(this.year, this.time / (this.seasonDuration * 4)).damage;
     this.runStats.taken += Math.min(p.hp, n);
     p.hp = Math.max(this.sandbox && !this.sandboxMortal ? 1 : 0, p.hp - n);
     p.invuln = 0.85;
@@ -976,7 +984,7 @@ export class Game {
             for (const offset of this.season >= 2 ? [-0.23, 0, 0.23] : [0]) {
               if (
                 this.enemyShots.length >=
-                encounterBudget(this.time, this.seasonDuration, this.season)
+                this.encounter()
                   .shotCap
               )
                 break;
@@ -1090,6 +1098,13 @@ export class Game {
     );
   }
   updateBoss(e, dt) {
+    const first = this.hazards.length;
+    // Increase decision frequency, keeping telegraphs and projectile travel readable.
+    if (this.mode === "hell" && !e.attack) e.bossClock -= dt * .25;
+    this.updateBossBehavior(e, dt);
+    for (let i = first; i < this.hazards.length; i++) this.hazards[i].bossYear = e.bossYear || this.year;
+  }
+  updateBossBehavior(e, dt) {
     if (e.hp <= 0) return;
     if (e.bossKind && e.bossKind !== "bear") {
       updateChapterBoss(this, e, dt);
@@ -1202,6 +1217,7 @@ export class Game {
     this.finishSeason();
   }
   finishSeason() {
+    if (this.mode === "hell") return;
     this.pendingSeason = false;
     if (this.season < 3) {
       this.season++;
@@ -1214,6 +1230,7 @@ export class Game {
     this.grid.rebuild(this.enemies);
   }
   snapshot() {
+    if (this.mode === "hell") return null;
     return {
       version: 1,
       year: this.year,
@@ -1230,6 +1247,7 @@ export class Game {
     };
   }
   restore(s) {
+    if (this.mode === "hell") throw Error("Hell runs cannot resume checkpoints");
     const finite = (v, min, max) => Number.isFinite(v) && v >= min && v <= max;
     if (
       !s ||
@@ -1316,6 +1334,28 @@ export class Game {
     }
   }
 
+  encounter() {
+    return this.mode === "hell" ? hellBudget(this.time, this.season)
+      : encounterBudget(this.time, this.seasonDuration, this.season, Boolean(this.boss));
+  }
+  updateHell() {
+    for (const boss of this.enemies.filter(e => e.type === "boss" && e.hp <= 0)) {
+      this.hellBossKills.push({ year: boss.bossYear, time: this.time });
+      this.heal(20);
+      this.onEvent("hellBossDefeated", boss.bossYear);
+    }
+    this.enemies = this.enemies.filter(e => e.type !== "boss" || e.hp > 0);
+    this.boss = this.enemies.find(e => e.type === "boss") || null;
+    const season = Math.min(3, Math.floor(this.time / this.seasonDuration));
+    if (season !== this.season) { this.season = season; this.onEvent("season"); }
+    // The first three arrivals are fixed, even if the previous boss is still alive.
+    // Overtime queues at most three living bosses to bound rendering and hazards.
+    if (this.time >= hellBossTime(this.hellBossIndex) && this.enemies.filter(e => e.type === "boss").length < 3) {
+      const boss = this.spawn("boss", false, hellBossYear(this.hellBossIndex));
+      this.hellBossIndex++;
+      this.onEvent("boss", boss.bossYear);
+    }
+  }
   step(dt, input = { x: 0, y: 0 }) {
     if (this.state !== "playing") return;
     dt = Math.min(dt, 0.05);
@@ -1345,15 +1385,12 @@ export class Game {
     this.runStats.distance += moved;
     p.moving = moved > 0.01;
     if (input.x) p.facing = input.x < 0 ? -1 : 1;
-    const budget = encounterBudget(
-      this.time,
-      this.seasonDuration,
-      this.season,
-      Boolean(this.boss),
-    );
+    const budget = this.encounter();
     const tuning = yearDifficulty(this.year, this.time / (this.seasonDuration * 4));
-    budget.cap = Math.round(budget.cap * tuning.cap);
-    budget.interval *= tuning.interval;
+    if (this.mode !== "hell") {
+      budget.cap = Math.round(budget.cap * tuning.cap);
+      budget.interval *= tuning.interval;
+    }
     if (!this.sandbox) {
       if (this.year > 1 && this.time > this.seasonDuration * 0.2) {
         budget.weights = { ...chapter(this.year).enemyWeights[this.season] };
@@ -1379,7 +1416,7 @@ export class Game {
       if (
         this.waveClock <= 0 &&
         this.time > Math.max(60, this.seasonDuration * 0.7) &&
-        !this.boss &&
+        (!this.boss || this.mode === "hell") &&
         this.enemies.length < budget.cap - 9
       ) {
         const count = 3 + this.season * 2;
@@ -1398,7 +1435,7 @@ export class Game {
           );
           bat.heading = first.heading;
         }
-        this.waveClock = 45 - this.season * 4;
+        this.waveClock = this.mode === "hell" ? 24 - this.season * 2 : 45 - this.season * 4;
         this.onEvent("wave");
       }
       this.eliteClock -= dt;
@@ -1408,11 +1445,11 @@ export class Game {
       }
       if (
         this.eliteClock <= 0 &&
-        !this.boss &&
+        (!this.boss || this.mode === "hell") &&
         this.enemies.length < budget.cap
       ) {
         this.spawn(this.season > 1 ? "boar" : "fox", true);
-        this.eliteClock = Math.max(45, this.seasonDuration * 0.55);
+        this.eliteClock = this.mode === "hell" ? 55 : Math.max(45, this.seasonDuration * 0.55);
         this.onEvent("elite");
       }
     }
@@ -1454,7 +1491,8 @@ export class Game {
       f.y -= 20 * dt;
     }
     this.floaters = this.floaters.filter((f) => f.life > 0);
-    if (!this.sandbox && this.boss && this.boss.hp <= 0) {
+    if (!this.sandbox && this.mode === "hell") this.updateHell();
+    if (!this.sandbox && this.mode !== "hell" && this.boss && this.boss.hp <= 0) {
       this.state = "won";
       this.onEvent("won");
       return;
@@ -1462,6 +1500,7 @@ export class Game {
     this.checkLevel();
     if (
       !this.sandbox &&
+      this.mode !== "hell" &&
       this.time >= (this.season + 1) * this.seasonDuration &&
       !this.boss &&
       !this.pendingSeason

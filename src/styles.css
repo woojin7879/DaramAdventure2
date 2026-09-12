@@ -221,6 +221,7 @@ h1 > span {
   letter-spacing: -0.02em;
 }
 .run-choice {
+  flex-wrap: wrap;
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
@@ -237,6 +238,8 @@ h1 > span {
   border-color: var(--accent);
   background: var(--panel-raised);
 }
+.run-choice button[aria-disabled="true"] { opacity: .6; }
+.run-choice #hell-mode.selected { color: #ffe4d5; border-color: #e09375; background: #5c2928; }
 .run-choice small {
   display: block;
   font-size: 11px;

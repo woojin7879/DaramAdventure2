@@ -771,7 +771,7 @@ export class Renderer {
     }
     for (const h of g.hazards) {
       if (drawPatternSprite(c,this.images,h,g.year)) continue;
-      if (drawBossHazard(c,h,g.time,g.year)) continue;
+      if (drawBossHazard(c,h,g.time,h.bossYear || g.year)) continue;
       if (h.type === "pool" || h.type === "rootline") {
         c.save();
         const warning = h.delay > 0;

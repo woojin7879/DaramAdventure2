@@ -26,6 +26,7 @@ function texturedRing(c,image,row,frame,h,r,gapped) {
   c.restore();
 }
 export function drawPatternSprite(c,images,h,year) {
+  year = h.bossYear || year;
   if(h.delay>0)return false;
   const serpent=h.theme==='serpent'||h.theme==='water'||year===2;
   const image=images[year===1?'bear-vfx':serpent?'serpent-vfx':'heart-vfx'];
