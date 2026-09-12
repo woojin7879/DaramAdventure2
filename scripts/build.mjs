@@ -6,5 +6,6 @@ await Promise.all([
   copyFile("index.html", "dist/index.html"),
   copyFile("lab.html", "dist/lab.html"),
   copyFile("boss.html", "dist/boss.html"),
+  copyFile("admin.html", "dist/admin.html"),
 ]);
 console.log("Built Daram Survivors → dist");

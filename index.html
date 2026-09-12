@@ -14,8 +14,9 @@
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231c3326'/%3E%3Ctext x='16' y='23' text-anchor='middle' fill='%23eed5a0' font-size='23'%3E✦%3C/text%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/title.css" />
   </head>
-  <body>
+  <body class="is-menu">
     <header class="masthead">
       <a class="wordmark" href="/" aria-label="다람이의 모험 2 시작 화면"
         ><span class="brand-mark">✦</span
@@ -44,83 +45,35 @@
         <span class="loader"></span>
         <p>숲을 깨우는 중…</p>
       </div>
-      <section id="title-screen" class="title-screen" hidden>
-        <div class="title-copy">
-          <div class="eyebrow"><span></span> 첫 번째 겨울잠, 그 이후</div>
-          <p class="small-title">DARAMI ADVENTURE II</p>
-          <h1>
-            다람이의<br /><span>모험 <em class="sequel-number">2</em></span
-            ><i class="title-star" aria-hidden="true">✦</i>
-          </h1>
-          <p class="title-description">작은 발걸음으로, 긴 겨울 너머까지.</p>
-          <div class="run-choice" role="group" aria-label="게임 모드">
-            <button class="selected" id="normal-mode" aria-pressed="true">
-              스토리 모드 <small>연차별 20분 + 보스</small></button
-            ><button id="quick-mode" aria-pressed="false">
-              빠른 체험 <small>5분 + 보스</small>
-            </button>
-            <button id="hell-mode" aria-pressed="false" aria-disabled="true">
-              헬 모드 <small>스토리 1~3년차 완료 시 해금</small>
-            </button>
-          </div>
-          <button id="start" class="start-button">
-            숲으로 들어가기 <span>↗</span></button
-          ><button id="continue" class="continue-button" hidden>
-            저장한 계절 이어하기 →
-          </button>
-          <a class="continue-button" href="/lab.html"
-            >관리자 · 무기 테스트 ↗</a
-          >
-          <label class="story-year-label"
-            >이야기
-            <select id="story-year" aria-label="미리 볼 연차">
-              <option value="0">프롤로그 · 원작 이후</option>
-              <option value="1">1년차</option>
-              <option value="2">2년차</option>
-              <option value="3">3년차</option>
-            </select></label
-          >
-          <a class="continue-button" href="/boss.html">관리자 · 보스 체험 →</a>
-          <button id="story-preview" class="continue-button admin-preview">
-            관리자 · 스토리 미리보기 ↗
-          </button>
-          <div class="control-hint">
-            <span
-              ><kbd>W</kbd
-              ><span class="keys-row"
-                ><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span
-              ></span
-            ><span>이동만 하세요.<br /><b>공격은 다람이가 할게요.</b></span>
-          </div>
+      <section id="title-screen" class="title-screen" aria-label="게임 시작" hidden>
+        <img class="title-landscape" src="/assets/prologue-spring.png" alt="봄이 찾아온 굴 입구에서 숲을 바라보는 다람이" fetchpriority="high">
+        <div class="title-shade" aria-hidden="true"></div>
+        <div class="title-identity">
+          <p class="title-series">DARAMI ADVENTURE</p>
+          <h1>다람이의<br>모험 <span>2</span></h1>
         </div>
-        <div class="chapter-note">
-          <span class="eyebrow">CHAPTER 01</span>
-          <h2>귀환의 숲</h2>
-          <p>봄 · 여름 · 가을 · 겨울</p>
-          <div class="chapter-line"></div>
-          <span class="chapter-detail">12종의 무기 · 6칸의 선택</span>
+        <div class="journey-menu">
+          <div class="menu-heading"><span>모험 선택</span><span id="journey-progress">0 / 3 완료</span></div>
+          <div class="mode-switch" role="group" aria-label="게임 모드">
+            <button id="normal-mode" class="selected" aria-pressed="true">스토리 모드<small>다람이의 다음 이야기</small></button>
+            <button id="hell-mode" aria-pressed="false" aria-disabled="true">헬 모드<small>스토리 완료 후 해금</small></button>
+          </div>
+          <div class="chapter-strip" role="group" aria-label="플레이할 연차"></div>
+          <div class="chapter-note">
+            <span class="eyebrow">1년차</span>
+            <h2>귀환의 숲</h2>
+            <p class="chapter-meta">봄 · 여름 · 가을 · 겨울</p>
+            <p class="title-description">꿈 밖에서 발견한 익숙한 매듭</p>
+          </div>
+          <button id="quick-mode" class="quick-toggle" aria-pressed="false"><span>빠른 체험</span><small>한 해를 5분으로 · 해금 제외</small></button>
+          <div class="journey-start">
+            <button id="continue" class="continue-button" hidden>저장한 계절 이어하기</button>
+            <button id="start" class="start-button">모험 시작 <span>↗</span></button>
+          </div>
+          <p id="record" class="journey-record">아직 남긴 기록이 없습니다.</p>
+          <p class="menu-controls"><span><kbd>W A S D</kbd> / 방향키 이동</span><span>공격은 자동으로</span></p>
         </div>
-        <div class="chapter-strip">
-          <div class="chapter active">
-            <span>01</span>
-            <div><b>귀환의 숲</b><small>1년차</small></div>
-            <span class="chapter-dot"></span>
-          </div>
-          <div class="chapter locked">
-            <span>02</span>
-            <div>
-              <b>물길 너머의 숲</b><small>이전 연차 클리어 후 해금</small>
-            </div>
-            <span>◇</span>
-          </div>
-          <div class="chapter locked">
-            <span>03</span>
-            <div>
-              <b>오래된 뿌리의 숲</b><small>이전 연차 클리어 후 해금</small>
-            </div>
-            <span>◇</span>
-          </div>
-        </div>
+        <span class="title-version">v0.9 · 다람이의 모험 2</span>
       </section>
       <div id="hud" class="hud" hidden>
         <div class="hud-top">
@@ -186,11 +139,6 @@
         ><button data-dir="right" aria-label="오른쪽 이동">→</button>
       </div>
     </main>
-    <footer class="footer">
-      <span>다람이의 모험에서 이어지는 작은 생존기</span
-      ><span id="record">첫 번째 발자국을 남겨보세요.</span
-      ><span class="version">PLAYABLE DRAFT · 0.7</span>
-    </footer>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

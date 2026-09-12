@@ -16,6 +16,8 @@ import { Renderer } from "./render.js";
 import { BY_ID, WEAPONS, PASSIVES, SEASONS, xpRequired } from "./data.js";
 const storyPlayback = new StoryPlayback();
 const $ = (id) => document.getElementById(id);
+const previewParam = new URLSearchParams(location.search).get("preview");
+const previewYear = previewParam !== null && /^[0-3]$/.test(previewParam) ? Number(previewParam) : null;
 const store = {
   read(key, fallback = null) {
     try {
@@ -226,33 +228,12 @@ function recordKey(year, fast = false) {
 function updateChapters() {
   const cleared = progress();
   $("hell-mode").setAttribute("aria-disabled", String(!hellUnlocked(cleared)));
-  $("hell-mode").querySelector("small").textContent = hellUnlocked(cleared) ? "30분 보스 러시 · 이후 무한" : "스토리 1~3년차 완료 시 해금";
+  $("hell-mode").querySelector("small").textContent = hellUnlocked(cleared) ? "30분 이후 무한 생존" : "스토리 완료 후 해금";
   document.querySelector(".chapter-strip").hidden = selectedMode === "hell";
-  document.querySelector(".chapter-strip").innerHTML = CHAPTERS.map((c) => {
+  $("journey-progress").textContent = `${cleared.length} / 3 완료`;
+  document.querySelector(".chapter-strip").innerHTML = CHAPTERS.map(c => {
     const unlocked = canPlayYear(c.id, cleared, quick);
-    return (
-      '<button class="chapter ' +
-      (selectedYear === c.id ? "active" : "") +
-      '" data-year="' +
-      c.id +
-      '" aria-pressed="' +
-      (selectedYear === c.id) +
-      '" aria-disabled="' +
-      !unlocked +
-      '"><span>0' +
-      c.id +
-      "</span><div><b>" +
-      c.name +
-      "</b><small>" +
-      (unlocked
-        ? cleared.includes(c.id)
-          ? "클리어 · 다시 도전"
-          : c.id + "년차"
-        : c.id - 1 + "년차 클리어 후 해금") +
-      "</small></div><span>" +
-      (unlocked ? "↗" : "◇") +
-      "</span></button>"
-    );
+    return `<button class="chapter ${selectedYear === c.id ? 'active' : ''}" data-year="${c.id}" aria-pressed="${selectedYear === c.id}" aria-disabled="${!unlocked}" aria-label="${c.id}년차 ${c.name}${!unlocked ? ', 잠김' : ''}"><b>${c.id}년차</b><small>${cleared.includes(c.id) ? '완료' : unlocked ? '도전' : '잠김'}</small></button>`;
   }).join("");
   document.querySelectorAll("[data-year]").forEach(
     (b) =>
@@ -273,10 +254,11 @@ function updateChapters() {
   document.querySelector(".chapter-note h2").textContent =
     chapter(selectedYear).name;
   document.querySelector(".chapter-note .eyebrow").textContent =
-    "CHAPTER 0" + selectedYear;
+    `${selectedYear}년차 · ${quick ? "빠른 체험" : "스토리 모드"}`;
   document.querySelector(".title-description").textContent =
     chapter(selectedYear).summary;
-  $("story-year").value = selectedYear;
+  $("quick-mode").hidden = selectedMode === "hell";
+  $("title-screen").dataset.mode = selectedMode;
   if (selectedMode === "hell") {
     document.querySelector(".chapter-note h2").textContent = "끝나지 않는 겨울";
     document.querySelector(".chapter-note .eyebrow").textContent = "HELL MODE";
@@ -289,7 +271,7 @@ function updateRecord() {
   const rec = store.read(selectedMode === "hell" ? "hellRecord" : recordKey(selectedYear, quick));
   $("record").textContent = rec
     ? `최고 생존 ${format(rec.time)} · ${rec.kills}마리 처치${selectedMode === "hell" ? ` · 보스 ${rec.bosses || 0}회 격파` : ""}`
-    : "첫 번째 발자국을 남겨보세요.";
+    : "아직 남긴 기록이 없습니다.";
 }
 function updateContinue() {
   const s = store.read("checkpoint");
@@ -315,6 +297,7 @@ function begin(checkpoint = null, afterPrologue = false) {
   }
   closeModal();
   $("title-screen").hidden = true;
+  document.body.classList.remove("is-menu");
   $("hud").hidden = false;
   $("touch-pad").hidden = !matchMedia("(pointer: coarse)").matches;
   keys.clear();
@@ -340,6 +323,7 @@ function goTitle() {
   game.reset(false, selectedYear);
   game.state = "title";
   $("title-screen").hidden = false;
+  document.body.classList.add("is-menu");
   $("hud").hidden = true;
   $("touch-pad").hidden = true;
   $("season-banner").hidden = true;
@@ -419,7 +403,7 @@ function showPrologue() {
 }
 function showEnding(preview = false) {
   storyPreview = preview;
-  storyYear = preview ? Number($("story-year").value) : game.year;
+  storyYear = preview ? (previewYear ?? selectedYear) : game.year;
   storyPrologue = preview && storyYear === 0;
   openStory(storyPrologue ? PROLOGUE : chapter(storyYear));
 }
@@ -442,7 +426,7 @@ function finishStory() {
   if (storyPreview) {
     storyPreview = false;
     closeModal();
-    $("story-preview").focus();
+    $("start").focus();
   } else showResult(true);
 }
 function advanceStory() {
@@ -564,7 +548,6 @@ function updateHud() {
       .join("");
   }
 }
-$("story-preview").onclick = () => showEnding(true);
 $("start").onclick = () => begin();
 $("continue").onclick = () => begin(store.read("checkpoint"));
 $("pause").onclick = () => game.pause();
@@ -584,7 +567,7 @@ function updateSound() {
 }
 updateSound();
 $("normal-mode").onclick = () => setMode(false);
-$("quick-mode").onclick = () => setMode(true);
+$("quick-mode").onclick = () => setMode(!quick);
 $("hell-mode").onclick = () => setMode(false, "hell");
 function setMode(v, mode = "story") {
   if (mode === "hell" && !hellUnlocked(progress())) {
@@ -601,7 +584,7 @@ function setMode(v, mode = "story") {
   updateContinue();
   updateRecord();
   for (const [id, selected] of [
-    ["normal-mode", mode === "story" && !v],
+    ["normal-mode", mode === "story"],
     ["quick-mode", mode === "story" && v],
     ["hell-mode", mode === "hell"],
   ]) {
@@ -745,10 +728,12 @@ renderer
   .then(() => {
     $("loading").hidden = true;
     $("title-screen").hidden = false;
+  document.body.classList.add("is-menu");
     renderer.resize();
     updateRecord();
     updateChapters();
     updateContinue();
+    if (previewYear !== null) showEnding(true);
     requestAnimationFrame(loop);
   })
   .catch((error) => {

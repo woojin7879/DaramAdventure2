@@ -1,0 +1,8 @@
+.admin-hub { padding: 48px 24px; }
+.admin-hub main { width: min(720px, 100%); margin: auto; }
+.admin-hub h1 { font-size: 32px; margin: 36px 0 16px; }
+.admin-hub h2 { margin: 32px 0 16px; font-size: 22px; }
+.admin-hub p { color: var(--muted); line-height: 1.7; }
+.admin-hub nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 24px; }
+.admin-hub nav a { padding: 20px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+.admin-hub nav a:hover { border-color: var(--accent); }
