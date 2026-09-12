@@ -6,3 +6,6 @@ dist/
 
 # Local design-tool history
 .hallmark/
+
+# Desktop installers
+release/

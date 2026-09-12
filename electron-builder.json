@@ -1,0 +1,10 @@
+{
+  "appId": "com.woojin7879.daramadventure2",
+  "productName": "Darami Adventure 2",
+  "directories": { "output": "release" },
+  "files": ["dist/**/*", "desktop/**/*", "package.json"],
+  "mac": { "target": ["dmg"], "category": "public.app-category.games", "identity": null },
+  "win": { "target": ["nsis"] },
+  "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true },
+  "artifactName": "Darami-Adventure-2-${version}-${os}-${arch}.${ext}"
+}

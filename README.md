@@ -1,6 +1,8 @@
 # 다람이의 모험 2 · Darami Adventure 2
 
-다람이의 모험에서 이어지는 JavaScript 브라우저 생존 액션 게임. **첫 플레이 가능한 초안 v0.7**입니다.
+다람이의 모험에서 이어지는 JavaScript 생존 액션 게임. **브라우저·데스크톱 테스트 버전 v0.8**입니다.
+
+맥·윈도우 실행 파일은 [GitHub Releases](https://github.com/woojin7879/DaramAdventure2/releases)에서 받습니다. 설치/빌드 안내는 [데스크톱 배포](docs/DESKTOP.md)를 참고하세요.
 
 ## 실행
 

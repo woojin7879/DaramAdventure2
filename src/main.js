@@ -1,3 +1,4 @@
+import { PROLOGUE, shouldPlayPrologue } from "./prologue.js";
 import { StoryPlayback } from "./cinematic.js";
 import {
   CHAPTERS,
@@ -48,6 +49,7 @@ let quick = false,
   lastSlots = "",
   endingPage = 0,
   storyPreview = false,
+  storyPrologue = false,
   toastTimer,
   bannerTimer,
   helpWasPlaying = false,
@@ -273,13 +275,17 @@ function updateContinue() {
   const s = store.read("checkpoint");
   $("continue").hidden = !s || s.version !== 1;
 }
-function begin(checkpoint = null) {
+function begin(checkpoint = null, afterPrologue = false) {
   if (checkpoint) {
     selectedYear = checkpoint.year ?? 1;
     quick = checkpoint.quick;
   }
   if (!canPlayYear(selectedYear, progress(), checkpoint?.quick ?? quick)) {
     toast("이전 연차를 먼저 클리어하세요.");
+    return;
+  }
+  if (!afterPrologue && shouldPlayPrologue({year:selectedYear,checkpoint,seen:store.read('prologueSeen',false)})) {
+    showPrologue();
     return;
   }
   closeModal();
@@ -380,17 +386,34 @@ function showResult(won) {
       begin();
     };
 }
+function showPrologue() {
+  storyPrologue=true;
+  storyPreview=false;
+  storyYear=1;
+  openStory(PROLOGUE);
+}
 function showEnding(preview = false) {
   storyPreview = preview;
   storyYear = preview ? Number($("story-year").value) : game.year;
-  ending = chapter(storyYear).ending;
+  storyPrologue = preview && storyYear === 0;
+  openStory(storyPrologue ? PROLOGUE : chapter(storyYear));
+}
+function openStory(config) {
+  ending = config.ending;
   endingPage = 0;
   storyPlayback.paused = false;
-  for (const name of new Set(chapter(storyYear).images)) { const image = new Image(); image.src = `/assets/${name}.png`; }
+  for (const name of new Set(config.images)) { const image = new Image(); image.src = `/assets/${name}.png`; }
   if (sound) storyMusic.unlock();
   renderEnding();
 }
 function finishStory() {
+  if (storyPrologue && !storyPreview) {
+    storyPrologue=false;
+    store.write("prologueSeen",true);
+    begin(null,true);
+    return;
+  }
+  storyPrologue=false;
   if (storyPreview) {
     storyPreview = false;
     closeModal();
@@ -402,7 +425,7 @@ function advanceStory() {
   else { endingPage++; renderEnding(); }
 }
 function renderEnding() {
-  const config = chapter(storyYear);
+  const config = storyPrologue ? PROLOGUE : chapter(storyYear);
   const shot = config.shots?.[endingPage] || {};
   const [title, text] = ending[endingPage];
   const finale = storyYear === 3 && endingPage === ending.length - 1;
@@ -410,7 +433,7 @@ function renderEnding() {
   const oldFigure = modalKind === "ending" ? $("modal-content").querySelector(".story-scene") : null;
   storyMusic.select(shot.cue ?? Math.min(2, Math.floor(endingPage * 3 / ending.length)), storyYear);
   const copy = text.split("\n").map((line, i) => `<span class="subtitle-line ${finale ? 'wizard-reveal' : ''}" style="--line-delay:${0.15 + i * 0.22}s">${line}</span>`).join("");
-  showModal("ending", `<figure class="story-scene" data-image="${imageName}" data-mood="${shot.mood || 'warm'}"><img class="${shot.still ? 'story-still' : ''}" src="/assets/${imageName}.png" alt="${config.name} · ${title}" style="transform-origin:${shot.focus || '50% 50%'}"><div class="story-motes" aria-hidden="true">✧　 ·　　 ✦　　 ·　 ✧</div></figure><span class="eyebrow">${storyPreview ? '관리자 미리보기' : `${storyYear}년차 · ${config.name}`} · ${endingPage + 1} / ${ending.length}</span><h2 id="modal-title">${title}</h2><div class="ending-copy" aria-live="polite"><span class="story-speaker">${shot.speaker || '다람이'}</span>${copy}</div><div class="story-progress" aria-hidden="true"><i id="story-progress-fill"></i></div><div class="modal-actions"><button id="previous-story" ${endingPage === 0 ? 'disabled' : ''}>이전</button><button id="story-auto">${storyPlayback.paused ? '자동 재생' : '일시정지'}</button><button id="next-story" class="primary">${endingPage === ending.length - 1 ? '한 해 마무리' : '다음'}</button><button id="story-sound">${sound ? '음악 끄기' : '음악 켜기'}</button><button id="skip-story">${storyPreview ? '닫기' : '건너뛰기'}</button></div>`);
+  showModal("ending", `<figure class="story-scene" data-image="${imageName}" data-mood="${shot.mood || 'warm'}"><img class="${shot.still ? 'story-still' : ''}" src="/assets/${imageName}.png" alt="${config.name} · ${title}" style="transform-origin:${shot.focus || '50% 50%'}"><div class="story-motes" aria-hidden="true">✧　 ·　　 ✦　　 ·　 ✧</div></figure><span class="eyebrow">${storyPreview ? '관리자 미리보기' : storyPrologue ? "프롤로그 · 원작에서 이어지는 이야기" : `${storyYear}년차 · ${config.name}`} · ${endingPage + 1} / ${ending.length}</span><h2 id="modal-title">${title}</h2><div class="ending-copy" aria-live="polite"><span class="story-speaker">${shot.speaker || '다람이'}</span>${copy}</div><div class="story-progress" aria-hidden="true"><i id="story-progress-fill"></i></div><div class="modal-actions"><button id="previous-story" ${endingPage === 0 ? 'disabled' : ''}>이전</button><button id="story-auto">${storyPlayback.paused ? '자동 재생' : '일시정지'}</button><button id="next-story" class="primary">${endingPage === ending.length - 1 ? (storyPrologue ? '숲으로 출발' : '한 해 마무리') : '다음'}</button><button id="story-sound">${sound ? '음악 끄기' : '음악 켜기'}</button><button id="skip-story">${storyPreview ? '닫기' : '건너뛰기'}</button></div>`);
   const figure = $("modal-content").querySelector('.story-scene');
   if (oldFigure?.dataset.image === imageName) {
     // Subtitle-only update: preserve image, framing and animation time exactly.
