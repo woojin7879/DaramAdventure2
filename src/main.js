@@ -1,3 +1,4 @@
+import { playIntro } from "./intro.js";
 import { PROLOGUE, shouldPlayPrologue } from "./prologue.js";
 import { hellUnlocked, hellBossTime } from "./hell.js";
 import { StoryPlayback } from "./cinematic.js";
@@ -44,8 +45,8 @@ const store = {
 let selectedYear = 1,
   storyYear = 1,
   ending = chapter(1).ending;
-let quick = false,
-  selectedMode = "story",
+const quick = false;
+let selectedMode = "story",
   keys = new Set(),
   touch = { x: 0, y: 0 },
   modalKind = "",
@@ -241,7 +242,7 @@ function updateChapters() {
         const year = Number(b.dataset.year);
         if (!canPlayYear(year, progress(), quick)) {
           toast(
-            "이전 연차를 클리어하세요. 빠른 체험에서는 모든 연차를 시험할 수 있습니다.",
+            "이전 연차를 먼저 클리어하세요.",
           );
           return;
         }
@@ -254,10 +255,9 @@ function updateChapters() {
   document.querySelector(".chapter-note h2").textContent =
     chapter(selectedYear).name;
   document.querySelector(".chapter-note .eyebrow").textContent =
-    `${selectedYear}년차 · ${quick ? "빠른 체험" : "스토리 모드"}`;
+    `${selectedYear}년차 · 스토리 모드`;
   document.querySelector(".title-description").textContent =
     chapter(selectedYear).summary;
-  $("quick-mode").hidden = selectedMode === "hell";
   $("title-screen").dataset.mode = selectedMode;
   if (selectedMode === "hell") {
     document.querySelector(".chapter-note h2").textContent = "끝나지 않는 겨울";
@@ -275,13 +275,13 @@ function updateRecord() {
 }
 function updateContinue() {
   const s = store.read("checkpoint");
-  $("continue").hidden = selectedMode === "hell" || !s || s.version !== 1;
+  $("continue").hidden = selectedMode === "hell" || !s || s.version !== 1 || s.quick;
 }
 function begin(checkpoint = null, afterPrologue = false) {
+  if (checkpoint?.quick) { toast("빠른 체험은 종료되었습니다. 새 모험을 시작하세요."); return; }
   if (checkpoint) {
     selectedMode = "story";
     selectedYear = checkpoint.year ?? 1;
-    quick = checkpoint.quick;
   }
   if (selectedMode === "hell" && !hellUnlocked(progress())) {
     toast("스토리 모드의 1~3년차를 모두 클리어하면 해금됩니다.");
@@ -330,7 +330,7 @@ function goTitle() {
   $("toast").hidden = true;
   clearTimeout(bannerTimer);
   updateContinue();
-  setMode(quick, selectedMode);
+  setMode(selectedMode);
   updateRecord();
   $("start").focus();
 }
@@ -384,15 +384,13 @@ function showResult(won) {
     `<span class="eyebrow">${game.mode === "hell" ? "HELL MODE · LAST STAND" : won ? `YEAR ${game.year} · SURVIVED` : "ONE MORE SPRING"}</span><h2 id="modal-title">${label}</h2><p class="sub">${game.mode === "hell" ? `헬 모드 · 보스 ${game.hellBossKills.length}회 격파` : `${game.year}년차 · ${chapter(game.year).name}${game.quick ? " · 빠른 체험" : ""}`}${won ? " 완료" : ` · ${SEASONS[game.season].name}에서의 발자국`}</p><div class="result-stats"><div><small>생존 시간</small><b>${format(game.time)}</b></div><div><small>처치</small><b>${game.kills}</b></div><div><small>레벨</small><b>${game.level}</b></div></div>${resultDetails(game.report())}<div class="modal-actions"><button id="again" class="primary">다시 도전하기</button><button id="home">시작 화면으로</button>${won && game.year < 3 ? '<button id="next-year" class="primary">다음 연차 시작 →</button>' : ""}</div>${won && game.year === 3 ? '<p class="sub">부모님과의 재회, 그리고 마법사의 첫걸음.<br>다음 작품 구상: 호그와트에서 시작되는 마법 디펜스.</p>' : ""}`,
   );
   $("again").onclick = () => {
-    quick = game.quick;
     begin();
   };
   $("home").onclick = goTitle;
   if ($("next-year"))
     $("next-year").onclick = () => {
       selectedYear = game.year + 1;
-      quick = game.quick;
-      begin();
+        begin();
     };
 }
 function showPrologue() {
@@ -566,16 +564,14 @@ function updateSound() {
   $("sound").setAttribute("aria-label", sound ? "소리 끄기" : "소리 켜기");
 }
 updateSound();
-$("normal-mode").onclick = () => setMode(false);
-$("quick-mode").onclick = () => setMode(!quick);
-$("hell-mode").onclick = () => setMode(false, "hell");
-function setMode(v, mode = "story") {
+$("normal-mode").onclick = () => setMode("story");
+$("hell-mode").onclick = () => setMode("hell");
+function setMode(mode = "story") {
   if (mode === "hell" && !hellUnlocked(progress())) {
     toast("스토리 모드 1~3년차를 모두 완료하면 헬 모드가 열립니다.");
     return;
   }
   selectedMode = mode;
-  quick = mode === "hell" ? false : v;
   if (!canPlayYear(selectedYear, progress(), quick)) {
     selectedYear = 1;
     game.year = 1;
@@ -585,7 +581,6 @@ function setMode(v, mode = "story") {
   updateRecord();
   for (const [id, selected] of [
     ["normal-mode", mode === "story"],
-    ["quick-mode", mode === "story" && v],
     ["hell-mode", mode === "hell"],
   ]) {
     $(id).classList.toggle("selected", selected);
@@ -734,6 +729,7 @@ renderer
     updateChapters();
     updateContinue();
     if (previewYear !== null) showEnding(true);
+    else playIntro({onFinish: () => $("start").focus({preventScroll:true})});
     requestAnimationFrame(loop);
   })
   .catch((error) => {
