@@ -23,3 +23,12 @@ test('opening camera stays continuous, moves forward and all sprite crops stay i
     previous=frame.travel;
   }
 });
+test('sequel number waits for the base title, lands sharply and settles',()=>{
+  assert.equal(introFrame(8).title,1);
+  assert.equal(introFrame(8).number,0);
+  assert.ok(introFrame(8.2).numberScale>1);
+  assert.equal(introFrame(8.4).number,1);
+  assert.ok(introFrame(8.4).impact>0);
+  assert.equal(introFrame(8.7).numberScale,1);
+  assert.equal(introFrame(8.7).impact,0);
+});

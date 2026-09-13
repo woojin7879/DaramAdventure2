@@ -19,3 +19,11 @@ Create ONE image 1536x1024 production game background atlas, EXACTLY four equal 
 ## frost
 
 Create a cinematic pixel-art foreground overlay on TRUE TRANSPARENT background, 1536x1024. ONLY a creeping BLACK FROST growth originating at bottom-right corner: branching jagged dark charcoal crystalline ice tendrils with very subtle cold blue edges, crawling along the bottom fifth toward left and up the rightmost quarter. Keep center and entire left upper 80% completely transparent. Shapes have crisp attractive pixel-art edges, readable larger ice structures with a few tiny flakes, no noisy texture, no glow haze, no opaque sky/background, no floor, no characters, no words. This is a game cinematic overlay to reveal slowly over a snowy forest as ominous frost invades. The densest ice is at right edge and bottom right; taper to a few delicate tendrils toward center-bottom. No border around entire image.
+
+## 고해상도 캐릭터와 후속작 숫자 연출
+
+현재 활성 캐릭터는 `intro-run-hd-a/b/c.png`의 2열×1행 시트 세 장이다. 이미지 한 장은 1536×1024, 동작당 셀은 768×1024로 기존 384×512 대비 각 변 두 배다. 달리기 4동작, 제동/정지 2동작을 새로 그렸다. 원본의 색상/꼬리/자세를 참조하고 검은 배경을 지정해 생성했다. 기존 `intro-run.png`는 보존한다.
+
+런타임에서 매트를 제거한 실루엣의 발 위치를 계산해 접지점을 정렬하며, 캐릭터만 고품질 축소 샘플링을 쓴다. 출력은 최대 3배 화면 밀도, 총 800만 픽셀 한도다.
+
+7.25초부터 ‘다람이의 모험’이 나타난다. 8.15초에 숫자 2가 크게 접근하고 8.35초에 찍힌다. 작은 반동과 테두리 파동, 소리를 켰을 때 짧은 충격음을 동기화한다. 동작 줄이기에서는 완성된 제목만 표시한다.

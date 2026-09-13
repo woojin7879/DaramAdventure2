@@ -11,3 +11,6 @@
 .intro-loading { position: absolute; top: 48%; width: 100%; text-align: center; color: var(--menu-muted); font-size: 16px; }
 @media (max-width: 600px) { .intro-title { top: 13%; } .intro-controls { right: 12px; bottom: 16px; gap: 8px; } .intro-controls button { padding: 10px 12px; } }
 @media (max-height: 500px) { .intro-title { top: 8%; padding: 12px; } .intro-title span { font-size: 22px; } .intro-title strong { font-size: 54px; } .intro-title small { margin-top: 8px; } .intro-controls { bottom: 8px; } }
+/* The sequel number lands after the original title has settled. */
+.intro-number { display: inline-block; position: relative; transform-origin: 50% 65%; opacity: 0; margin-left: .04em; }
+.intro-number i { position: absolute; inset: .06em -.22em -.02em; border: 2px solid var(--menu-accent); border-radius: 50%; opacity: 0; pointer-events: none; }

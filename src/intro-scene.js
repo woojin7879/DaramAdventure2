@@ -5,15 +5,20 @@ const smooth = n => { const t=clamp(n); return t*t*(3-2*t); };
 export function introFrame(t) {
   const season=Math.min(3,Math.floor(t/1.8));
   const moving=t<6.5;
+  const stamp=clamp((t-8.15)/.2), hit=clamp((t-8.35)/.28);
+  const impact=t>=8.35?1-hit:0;
   return { season, blend:smooth((t-season*1.8)/.45),
     travel: t<6.5?t:6.5+.7*(clamp((t-6.5)/.7)-clamp((t-6.5)/.7)**2/2),
     sprite:moving?Math.floor(t*11)%4:t<7.1?4:t<7.5?5:6,
     frost:smooth((t-6.65)/1.5), title:smooth((t-7.25)/.6),
+    number: t<8.15?0:clamp((t-8.15)/.05),
+    numberScale: t<8.35?1+2*(1-stamp)**3:1-.06*Math.sin(hit*Math.PI),
+    impact, ringScale:1+hit*.8,
     fade:1-smooth((t-8.95)/.65), moving };
 }
 export function drawIntro(canvas,images,t,reduced=false) {
   const c=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
-  const f=introFrame(reduced?8.1:t),top=h*.08,stage=h*.8,floor=top+stage*.85;
+  const f=introFrame(reduced?8.7:t),top=h*.08,stage=h*.8,floor=top+stage*.85;
   c.clearRect(0,0,w,h);c.fillStyle='#0b1515';c.fillRect(0,0,w,h);
   c.imageSmoothingEnabled=false;
   function background(season,alpha) {
@@ -27,9 +32,12 @@ export function drawIntro(canvas,images,t,reduced=false) {
   // The entire shot uses the same foot anchor while both scenery planes scroll.
   const size=Math.min(h*.42,w*.48),x=w*.4,y=floor;
   c.fillStyle='#10212866';c.beginPath();c.ellipse(x,y+3,size*.25,size*.045,0,0,Math.PI*2);c.fill();
-  const im=images.run,sw=im.width/4,sh=im.height/2,frame=f.sprite;
+  const frame=images.runFrames[Math.min(5,f.sprite)];
+  const scale=size*.54/images.runFrames[0].height;
   const bounce=f.moving&&!reduced?Math.sin(t*22)*size*.012:0;
-  c.drawImage(im,(frame%4)*sw,Math.floor(frame/4)*sh,sw,sh,x-size*.375,y-size*(frame<4?435:413)/512+bounce,size*.75,size);
+  c.imageSmoothingEnabled=true;c.imageSmoothingQuality="high";
+  c.drawImage(frame.image,frame.sx,0,frame.sw,frame.sh,x-frame.center*scale,y-frame.foot*scale+bounce,frame.sw*scale,frame.sh*scale);
+  c.imageSmoothingEnabled=false;
   // Separate, faster foreground raster trees add depth without shifting the hero.
   if(images.scenery) for(let i=0;i<3;i++) {
     const spacing=w*.85,offset=(f.travel*125*(h/540))%spacing;

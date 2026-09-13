@@ -18,10 +18,10 @@ export function clearBlackMatte(data,width,height,columns=4,rows=2) {
     }
   }
 }
-export function opaqueBossAtlas(image) {
+export function opaqueBossAtlas(image, columns=4, rows=2) {
   const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
   const c=canvas.getContext('2d',{willReadFrequently:true});c.drawImage(image,0,0);
   const pixels=c.getImageData(0,0,canvas.width,canvas.height);
-  clearBlackMatte(pixels.data,canvas.width,canvas.height);
+  clearBlackMatte(pixels.data,canvas.width,canvas.height,columns,rows);
   c.putImageData(pixels,0,0);return canvas;
 }

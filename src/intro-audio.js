@@ -19,6 +19,13 @@ export class IntroAudio {
     const c=this.context;
     this.filter.frequency.setTargetAtTime([450,1600,650,900][frame.season],c.currentTime,.25);
     this.gain.gain.setTargetAtTime((frame.season===1?.045:.024)*frame.fade,c.currentTime,.2);
+    if(t>=8.35&&!this.stamped) {
+      this.stamped=true;
+      const o=c.createOscillator(),g=c.createGain();o.type='triangle';
+      o.frequency.setValueAtTime(180,c.currentTime);o.frequency.exponentialRampToValueAtTime(48,c.currentTime+.12);
+      g.gain.setValueAtTime(.09,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.18);
+      o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+.2);
+    }
     const step=Math.floor(t*5.5);
     if(frame.moving&&step!==this.lastStep) {
       this.lastStep=step;
