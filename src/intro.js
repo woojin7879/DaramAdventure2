@@ -4,7 +4,7 @@ import { INTRO_DURATION, drawIntro } from './intro-scene.js';
 import { IntroAudio } from './intro-audio.js';
 import { opaqueBossAtlas } from './boss-opacity.js';
 
-export function playIntro({ onFinish = () => {}, soundEnabled = true, onSoundChange = () => {} } = {}) {
+export function playIntro({ onFinish = () => {}, soundEnabled = true, onSoundChange = () => {}, onAudioGesture = () => {} } = {}) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const layer = document.createElement('section');
   layer.className = 'game-intro';
@@ -13,12 +13,15 @@ export function playIntro({ onFinish = () => {}, soundEnabled = true, onSoundCha
   layer.innerHTML = `<canvas class="intro-canvas" aria-hidden="true"></canvas>
     <p class="intro-loading" role="status">숲을 깨우는 중…</p>
     <div class="intro-title"><span>다람이의</span><strong>모험 <b class="intro-number">2<i aria-hidden="true"></i></b></strong><small>DARAMI ADVENTURE II</small></div>
+    <div class="intro-audio-gate" hidden><p>다람이의 모험 2</p><button class="intro-begin">모험 시작</button></div>
     <div class="intro-controls"><button class="intro-sound" aria-pressed="false">소리 켜기</button><button class="intro-skip">건너뛰기 <kbd>ESC</kbd></button></div>`;
   const siblings = [...document.body.children].filter(el => el.tagName !== 'SCRIPT');
   const previousInert = siblings.map(el => el.inert);
   siblings.forEach(el => { el.inert = true; });document.body.append(layer);
   const canvas=layer.querySelector('canvas'), title=layer.querySelector('.intro-title');
   const audio=new IntroAudio();
+  const audioGate=layer.querySelector('.intro-audio-gate');
+  const beginButton=layer.querySelector('.intro-begin');
   let wantsSound = soundEnabled;
   const playback=new StoryPlayback();playback.duration=reduced?1.5:INTRO_DURATION;
   let ended=false,raf,timeout,previous=performance.now(),images=null;
@@ -32,19 +35,29 @@ export function playIntro({ onFinish = () => {}, soundEnabled = true, onSoundCha
     siblings.forEach((el,i)=>{el.inert=previousInert[i];});onFinish();
   };
   const keydown=event=> {
+    if (!audioGate.hidden && ['Enter','Space'].includes(event.code) && document.activeElement !== layer.querySelector('.intro-sound')) {
+      event.preventDefault();event.stopImmediatePropagation();onAudioGesture();startAudio();return;
+    }
     unlockAudio(event);
     if(event.code==='Escape'||((event.code==='Enter'||event.code==='Space')&&document.activeElement!==layer.querySelector('.intro-sound'))) {
       event.preventDefault();event.stopImmediatePropagation();finish();
     } else if(event.key==='Tab') {
-      event.preventDefault();const sound=layer.querySelector('.intro-sound'),skip=layer.querySelector('.intro-skip');
-      (document.activeElement===sound?skip:sound).focus();
+      event.preventDefault();
+      const buttons=[...layer.querySelectorAll('button')].filter(b=>!b.closest('[hidden]')&&!b.disabled);
+      const index=buttons.indexOf(document.activeElement);
+      buttons[(index+(event.shiftKey?-1:1)+buttons.length)%buttons.length].focus();
     }
   };
   const visibility=()=> {previous=performance.now();if(document.hidden)audio.context?.suspend();else if(audio.enabled)audio.context?.resume().catch(()=>{});};
   const tick=now=> {
     const elapsed=(now-previous)/1000;previous=now;
     if(images) {
-      if(playback.tick(elapsed,!document.hidden)){finish();return;}
+      const waiting = wantsSound && !audio.running;
+      const gateWasHidden = audioGate.hidden;
+      audioGate.hidden = !waiting;
+      if (waiting && gateWasHidden) beginButton.focus({preventScroll:true});
+      if (!waiting && document.activeElement === beginButton) layer.querySelector('.intro-skip').focus({preventScroll:true});
+      if(playback.tick(elapsed,!document.hidden && !waiting)){finish();return;}
       const frame=drawIntro(canvas,images,playback.elapsed,reduced);
       title.style.opacity=frame.title;title.style.transform=`translateY(${(1-frame.title)*14+(reduced?0:frame.impact*3)}px)`;
       const number=layer.querySelector('.intro-number'),ring=number.querySelector('i');
@@ -58,18 +71,20 @@ export function playIntro({ onFinish = () => {}, soundEnabled = true, onSoundCha
   layer.querySelector('.intro-skip').onclick=finish;
   const soundButton=layer.querySelector('.intro-sound');
   const startAudio = () => {
-    if (ended || !wantsSound || audio.enabled) return;
+    if (ended || !wantsSound || audio.running) return;
     audio.enable().catch(() => {});
   };
   const unlockAudio = event => {
-    if (!soundButton.contains(event.target)) startAudio();
+    if (wantsSound) onAudioGesture();
+    if (!soundButton.contains(event.target) && !beginButton.contains(event.target)) startAudio();
   };
+  beginButton.onclick = () => { onAudioGesture(); startAudio(); };
   updateSoundControl(soundButton, wantsSound);
   soundButton.onclick = () => {
     wantsSound = !wantsSound;
     onSoundChange(wantsSound);
     updateSoundControl(soundButton, wantsSound);
-    if (wantsSound) startAudio(); else audio.mute();
+    if (wantsSound) { onAudioGesture(); startAudio(); } else audio.mute();
   };
   // Preference stays on if autoplay is blocked; the next gesture retries it.
   layer.addEventListener('pointerdown', unlockAudio);

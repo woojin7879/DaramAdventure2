@@ -14,3 +14,7 @@
 /* The sequel number lands after the original title has settled. */
 .intro-number { display: inline-block; position: relative; transform-origin: 50% 65%; opacity: 0; margin-left: .04em; }
 .intro-number i { position: absolute; inset: .06em -.22em -.02em; border: 2px solid var(--menu-accent); border-radius: 50%; opacity: 0; pointer-events: none; }
+
+.intro-audio-gate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-lg); background: var(--overlay); }
+.intro-audio-gate p { color: var(--muted); font: 14px var(--font-body); }
+.intro-audio-gate button { min-height: 52px; padding: var(--space-md) var(--space-xl); background: var(--journal-paper); color: var(--journal-ink); border: 0; border-radius: var(--radius-control); font: 700 18px var(--font-body); }

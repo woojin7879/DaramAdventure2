@@ -39,7 +39,7 @@ body:not(.is-menu) .game-shell { width: 100%; margin: 0; border: 0; height: calc
 .weapon-slot .item-icon { width: 34px; height: 34px; }
 .passive-slots .item-icon { width: 26px; height: 26px; }
 .modal:not(:has([data-kind="ending"])) { position: fixed; inset: 0; padding: clamp(12px, 3vw, 40px); background: var(--overlay); }
-.modal-inner:not([data-kind="ending"]) { width: min(760px, 100%); text-align: left; margin: auto; padding: var(--space-xl); background: var(--panel); border-top: 3px solid var(--accent); border-radius: var(--radius-control); max-height: none; }
+.modal-inner:not([data-kind="ending"]) { width: min(760px, 100%); text-align: left; margin: auto; padding: var(--space-xl); background: var(--panel); border-top: 0; border-radius: var(--radius-control); max-height: none; }
 .modal-inner:not([data-kind="ending"]) > .eyebrow { justify-content: flex-start; font: 12px var(--font-body); letter-spacing: .03em; color: var(--muted); }
 .modal-inner:not([data-kind="ending"]) h2 { font: 700 clamp(24px, 3vw, 32px)/1.4 var(--font-display); margin: var(--space-xs) 0 var(--space-sm); }
 .modal-inner:not([data-kind="ending"]) .sub { font-size: 13px; }
@@ -153,3 +153,62 @@ body:not(.is-menu) .game-shell { width: 100%; margin: 0; border: 0; height: calc
 .modal:not(:has([data-kind="ending"])) { align-items: safe center; }
 .masthead .icon-button { min-height: 44px; }
 @media (max-width: 600px) { [data-kind="ending"] .sound-state { display: none; } }
+/* Version history remains a quiet, permanent corner of the title screen. */
+.patch-corner { position: fixed; left: var(--space-xl); bottom: var(--space-lg); width: min(300px, 32vw); padding: var(--space-md); background: var(--hud-surface); border-radius: var(--radius-control); }
+.patch-corner button { display: flex; align-items: center; gap: var(--space-sm); width: 100%; min-height: 44px; padding: 0; color: var(--ink); background: var(--clear); border: 0; font-size: 13px; white-space: nowrap; }
+.patch-corner button b { margin-left: auto; color: var(--accent); font-weight: 600; }
+.patch-corner p { margin: var(--space-2xs) 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.patch-release + .patch-release { border-top: 1px solid var(--line); margin-top: var(--space-xl); padding-top: var(--space-lg); }
+.patch-release header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); margin: var(--space-lg) 0 var(--space-xs); font-size: 12px; }
+.patch-version { color: var(--accent); font-weight: 600; }
+.patch-date { color: var(--muted); }
+.patch-release h3 { font: 700 21px/1.5 var(--font-body); margin-bottom: var(--space-xs); }
+.patch-release h4 { font: 600 15px var(--font-body); margin: var(--space-lg) 0 var(--space-sm); }
+.patch-release ul { padding-left: var(--space-lg); margin: 0; color: var(--muted); font-size: 14px; line-height: 1.8; }
+.patch-release li + li { margin-top: var(--space-xs); }
+.patch-release summary { cursor: pointer; margin-top: var(--space-md); }
+.modal:has([data-kind="patchnotes"]) { overflow: hidden; padding: var(--space-md); }
+.modal-inner[data-kind="patchnotes"] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: min(760px, calc(100svh - 32px));
+  max-height: calc(100svh - 32px);
+  overflow: hidden;
+}
+.patch-heading .eyebrow { justify-content: flex-start; color: var(--muted); font: 12px var(--font-body); }
+.patch-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: var(--space-sm); }
+.patch-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.modal-inner[data-kind="patchnotes"] .modal-actions {
+  position: static; margin: 0; padding: var(--space-md) 0 0;
+  justify-content: flex-end; border-top: 0; background: var(--panel);
+}
+@media (max-width: 760px) {
+  .patch-corner { position: static; grid-column: 1 / -1; width: 100%; max-width: 460px; justify-self: end; padding: var(--space-sm) var(--space-md); }
+}
+
+.modal-inner[data-kind="pause"] .modal-actions,
+.modal-inner[data-kind="help"] .modal-actions { justify-content: flex-end; }
+.pause-save-note { margin-top: var(--space-lg); }
+.modal-inner[data-kind="pause"] button:focus-visible,
+.modal-inner[data-kind="help"] button:focus-visible { outline-offset: 2px; }
+.modal:has([data-kind="pause"]) { overflow: hidden; padding: var(--space-md); }
+.modal-inner[data-kind="pause"] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: min(760px, calc(100svh - 32px)); max-height: calc(100svh - 32px); max-width: 760px; overflow: hidden; }
+.pause-heading .eyebrow { color: var(--muted); font: 12px var(--font-body); justify-content: flex-start; }
+.pause-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: var(--space-xs); }
+.pause-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pause-build h3 { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); font-size: 16px; margin: var(--space-lg) 0 var(--space-sm); }
+.pause-build h3 small { font: 12px var(--font-body); color: var(--muted); }
+.build-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-md) var(--space-lg); }
+.build-item { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: var(--space-sm); }
+.build-item .item-icon { width: 40px; height: 40px; }
+.build-name { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2xs) var(--space-xs); font-size: 13px; }
+.build-name span { font-size: 11px; color: var(--accent); white-space: nowrap; }
+.build-levels { display: flex; gap: 3px; margin: var(--space-xs) 0; }
+.build-levels i { width: 12px; height: 4px; background: var(--line); border-radius: 1px; }
+.build-levels i.filled { background: var(--accent); }
+.build-item p, .build-empty, .build-footnote { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.7; }
+.build-item .build-next { margin-top: var(--space-2xs); }
+.build-empty, .build-footnote { margin-top: var(--space-sm); }
+.pause-scroll .pause-save-note { margin-bottom: var(--space-sm); }
+.modal-inner[data-kind="pause"] .modal-actions { margin-top: var(--space-md); }
+@media (max-width: 600px) { .build-list { grid-template-columns: minmax(0, 1fr); } }

@@ -33,7 +33,7 @@
   --radius-control: 3px;
 }
 :root {
-  --item-atlas: url('/assets/inventory-icons.png');
+  --item-atlas: none; /* Set after calibrated crops are ready; never flash the raw sheet. */
   /* Shared intro aliases preserve the established title animation. */
   --menu-paper: var(--paper); --menu-ink: var(--ink); --menu-muted: var(--muted);
   --menu-line: var(--line); --menu-accent: var(--accent); --menu-shadow: var(--shadow);

@@ -1,3 +1,6 @@
+import { pauseLoadout } from "./pause-loadout.js";
+import { GAME_VERSION, RELEASE_NOTES, patchNotesHTML } from "./release-notes.js";
+import { seasonAudioActive } from "./audio-routing.js";
 import { readSoundSetting, saveSoundSetting } from "./sound-settings.js";
 import { itemIcon, prepareItemIcons } from "./item-icons.js";
 import { updateSoundControl } from "./sound-control.js";
@@ -50,6 +53,7 @@ let selectedYear = 1,
   storyYear = 1,
   ending = chapter(1).ending;
 const quick = false;
+let introActive = previewYear === null;
 let selectedMode = "story",
   keys = new Set(),
   touch = { x: 0, y: 0 },
@@ -295,7 +299,7 @@ function begin(checkpoint = null, afterPrologue = false) {
     toast("이전 연차를 먼저 클리어하세요.");
     return;
   }
-  if (selectedMode !== "hell" && !afterPrologue && shouldPlayPrologue({year:selectedYear,checkpoint,seen:store.read('prologueSeen',false)})) {
+  if (selectedMode !== "hell" && !afterPrologue && shouldPlayPrologue({year:selectedYear,checkpoint})) {
     showPrologue();
     return;
   }
@@ -322,6 +326,7 @@ function begin(checkpoint = null, afterPrologue = false) {
 }
 function goTitle() {
   closeModal();
+  music.suspend();
   music.select(0);
   game.state = "title";
   game.reset(false, selectedYear);
@@ -372,7 +377,7 @@ function showUpgrades() {
 function showPause() {
   showModal(
     "pause",
-    `<span class="eyebrow">일시정지</span><h2 id="modal-title">잠깐, 숨 고르기</h2><p class="sub">${game.mode === "hell" ? "헬 모드" : `${game.year}년차`} · ${SEASONS[game.season].name} · ${format(game.time)}<br>이동과 자동 공격만으로 숲을 살아남으세요.</p><div class="modal-actions"><button class="primary" id="resume">계속하기</button><button id="quit">시작 화면으로</button></div><p class="sub">${game.mode === "hell" ? "헬 모드는 중간 저장이 없습니다. 시작 화면으로 나가면 이번 도전이 끝납니다." : game.quick ? "빠른 체험은 중간 저장하지 않습니다." : "마지막 계절 시작 지점이 저장되어 있습니다."}</p>`,
+    `<header class="pause-heading"><span class="eyebrow">일시정지</span><h2 id="modal-title">잠깐, 숨 고르기</h2><p class="sub">${game.mode === "hell" ? "헬 모드" : `${game.year}년차`} · ${SEASONS[game.season].name} · ${format(game.time)}</p></header><div class="pause-scroll" tabindex="0" role="region" aria-label="현재 무기와 패시브">${pauseLoadout(game)}<p class="sub pause-save-note">${game.mode === "hell" ? "헬 모드는 중간 저장이 없습니다. 시작 화면으로 나가면 이번 도전이 끝납니다." : game.quick ? "빠른 체험은 중간 저장하지 않습니다." : "마지막 계절 시작 지점이 저장되어 있습니다."}</p></div><div class="modal-actions"><button class="primary" id="resume">계속하기</button><button id="quit">시작 화면으로</button></div>`,
   );
   $("resume").onclick = () => {
     closeModal();
@@ -420,7 +425,6 @@ function openStory(config) {
 function finishStory() {
   if (storyPrologue && !storyPreview) {
     storyPrologue=false;
-    store.write("prologueSeen",true);
     begin(null,true);
     return;
   }
@@ -444,7 +448,7 @@ function renderEnding() {
   const oldFigure = modalKind === "ending" ? $("modal-content").querySelector(".story-scene") : null;
   storyMusic.select(shot.cue ?? Math.min(2, Math.floor(endingPage * 3 / ending.length)), storyYear);
   const copy = text.split("\n").map((line, i) => `<span class="subtitle-line ${finale ? 'wizard-reveal' : ''}" style="--line-delay:${0.15 + i * 0.22}s">${line}</span>`).join("");
-  showModal("ending", `<figure class="story-scene" data-image="${imageName}" data-mood="${shot.mood || 'warm'}"><img class="${shot.still ? 'story-still' : ''}" src="/assets/${imageName}.png" alt="${config.name} · ${title}" style="transform-origin:${shot.focus || '50% 50%'}"><div class="story-motes" aria-hidden="true">✧　 ·　　 ✦　　 ·　 ✧</div></figure><span class="eyebrow">${storyPreview ? '관리자 미리보기' : storyPrologue ? "프롤로그 · 원작에서 이어지는 이야기" : `${storyYear}년차 · ${config.name}`} · ${endingPage + 1} / ${ending.length}</span><h2 id="modal-title">${title}</h2><div class="ending-copy" aria-live="polite"><span class="story-speaker">${shot.speaker || '다람이'}</span>${copy}</div><div class="story-progress" aria-hidden="true"><i id="story-progress-fill"></i></div><div class="modal-actions"><button id="previous-story" ${endingPage === 0 ? 'disabled' : ''}>이전</button><button id="story-auto">${storyPlayback.paused ? '자동 재생' : '일시정지'}</button><button id="next-story" class="primary">${endingPage === ending.length - 1 ? (storyPrologue ? '숲으로 출발' : '한 해 마무리') : '다음'}</button><button id="story-sound">${sound ? '음악 끄기' : '음악 켜기'}</button><button id="skip-story">${storyPreview ? '닫기' : '건너뛰기'}</button></div>`);
+  showModal("ending", `<figure class="story-scene" data-image="${imageName}" data-mood="${shot.mood || 'warm'}"><img class="${shot.still ? 'story-still' : ''}" src="/assets/${imageName}.png" alt="${config.name} · ${title}" style="transform-origin:${shot.focus || '50% 50%'}"><div class="story-motes" aria-hidden="true">✧　 ·　　 ✦　　 ·　 ✧</div></figure><span class="eyebrow">${storyPreview ? '관리자 미리보기' : storyPrologue ? "프롤로그 · 원작에서 이어지는 이야기" : `${storyYear}년차 · ${config.name}`} · ${endingPage + 1} / ${ending.length}</span><h2 id="modal-title">${title}</h2><div class="ending-copy" aria-live="polite"><span class="story-speaker">${shot.speaker || '다람이'}</span>${copy}</div><div class="story-progress" aria-hidden="true"><i id="story-progress-fill"></i></div><div class="modal-actions"><button id="previous-story" ${endingPage === 0 ? 'disabled' : ''}>이전</button><button id="story-auto">${storyPlayback.paused ? '자동 재생' : '일시정지'}</button><button id="next-story" class="primary">${endingPage === ending.length - 1 ? (storyPrologue ? '숲으로 출발' : '한 해 마무리') : '다음'}</button><button id="story-sound">${sound ? '음악 끄기' : '음악 켜기'}</button><button id="skip-story">${storyPreview ? '닫기' : '건너뛰기'} <kbd>ESC</kbd></button></div>`);
   const figure = $("modal-content").querySelector('.story-scene');
   if (oldFigure?.dataset.image === imageName) {
     // Subtitle-only update: preserve image, framing and animation time exactly.
@@ -473,6 +477,18 @@ function renderEnding() {
     updateSoundControl($("story-sound"), sound);
   };
 }
+function showPatchNotes() {
+  if (game.state !== 'title') return;
+  showModal('patchnotes', `<header class="patch-heading"><span class="eyebrow">다람이의 모험 2</span><h2 id="modal-title">패치노트</h2></header><div class="patch-scroll" tabindex="0" role="region" aria-label="버전별 변경 내역">${patchNotesHTML()}</div><div class="modal-actions"><button class="primary" id="close-patch-notes">닫기</button></div>`);
+  $('close-patch-notes').onclick = () => {
+    closeModal();
+    $('patch-notes').focus({preventScroll:true});
+  };
+}
+$('game-version').textContent = `v${GAME_VERSION}`;
+$('patch-summary').textContent = RELEASE_NOTES[0].summary;
+$('patch-notes').onclick = showPatchNotes;
+
 function showHelp() {
   const previousModal = modalKind;
   helpWasPlaying = game.state === "playing";
@@ -487,6 +503,7 @@ function showHelp() {
     if (helpWasPlaying) game.resume();
     else if (game.state === "paused") showPause();
     else if (previousModal === "ending") renderEnding();
+    else if (previousModal === "patchnotes") showPatchNotes();
     else if (game.state === "won" || game.state === "dead")
       showResult(game.state === "won");
   };
@@ -555,12 +572,16 @@ $("start").onclick = () => begin();
 $("continue").onclick = () => begin(store.read("checkpoint"));
 $("pause").onclick = () => game.pause();
 $("help").onclick = showHelp;
+function canPlaySeasonAudio() {
+  return seasonAudioActive({state:game.state, modalKind, introActive, hidden:document.hidden});
+}
 function setSound(enabled, unlock = true) {
   sound = Boolean(enabled);
-  saveSoundSetting(sound);
+  if (!saveSoundSetting(sound)) toast("소리 설정을 저장하지 못했습니다. 브라우저의 사이트 저장 권한을 확인해 주세요.");
   updateSound();
+  if (!canPlaySeasonAudio()) music.suspend();
   music.setEnabled(sound);
-  if (sound && unlock) music.unlock(game.season);
+  if (sound && unlock && canPlaySeasonAudio()) music.unlock(game.season);
 }
 $("sound").onclick = () => {
   setSound(!sound);
@@ -609,7 +630,9 @@ window.addEventListener("keydown", (e) => {
     if (game.state === "playing") keys.add(e.code);
   }
   if (e.code === "Escape") {
-    if (storyPreview && modalKind === "ending") {
+    e.preventDefault();
+    if (e.repeat) return;
+    if (modalKind === "ending") {
       finishStory();
       return;
     }
@@ -619,6 +642,7 @@ window.addEventListener("keydown", (e) => {
       closeModal();
       game.resume();
     } else if (modalKind === "help") $("close-help")?.click();
+    else if (modalKind === "patchnotes") $("close-patch-notes")?.click();
   }
   if (
     game.state === "levelup" &&
@@ -630,7 +654,7 @@ window.addEventListener("keydown", (e) => {
   }
   if (e.key === "Tab" && !$("modal").hidden) {
     const items = [
-      ...$("modal-content").querySelectorAll("button:not(:disabled), summary"),
+      ...$("modal-content").querySelectorAll('button:not(:disabled), summary, [tabindex="0"]'),
     ];
     if (items.length) {
       const first = items[0],
@@ -706,7 +730,7 @@ function loop(now) {
   } else accumulator = 0;
   music.update(elapsed, {
     active:
-      !document.hidden && game.state !== "paused" && modalKind !== "ending",
+      canPlaySeasonAudio(),
     duck: game.state === "levelup" ? 0.45 : game.state === "won" ? 0.7 : 1,
   });
   storyMusic.update(modalKind === "ending" && sound && !document.hidden);
@@ -735,7 +759,7 @@ renderer
     updateChapters();
     updateContinue();
     if (previewYear !== null) showEnding(true);
-    else playIntro({soundEnabled: sound, onSoundChange: enabled => setSound(enabled, false), onFinish: () => $("start").focus({preventScroll:true})});
+    else playIntro({soundEnabled: sound, onSoundChange: enabled => setSound(enabled, false), onAudioGesture: () => music.prime(0), onFinish: () => { introActive = false; if (sound) music.unlock(0); $("start").focus({preventScroll:true}); }});
     requestAnimationFrame(loop);
   })
   .catch((error) => {

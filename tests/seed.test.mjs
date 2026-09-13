@@ -78,3 +78,14 @@ test('sound icon communicates enabled, muted, and unavailable states accessibly'
   assert.equal(button.disabled,true);
   assert.equal(attributes['aria-pressed'],'false');
 });
+
+test('inventory cuts stop before the neighboring row enters the four reported icons', async () => {
+  const {inventoryCrop} = await import('../src/item-icons.js');
+  for (const id of ['turret','boomerang','seed','ice']) {
+    const index=ITEM_ICONS.indexOf(id);
+    const [x,y,w,h]=inventoryCrop(index,1402,1122);
+    assert.ok(w>200 && h>200);
+    assert.ok(y+h <= (id==='ice'?548:806));
+    assert.ok(x>=0 && x+w<=1402);
+  }
+});

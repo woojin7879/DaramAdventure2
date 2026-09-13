@@ -38,8 +38,8 @@ export function drawIntro(canvas,images,t,reduced=false) {
   c.imageSmoothingEnabled=true;c.imageSmoothingQuality="high";
   c.drawImage(frame.image,frame.sx,0,frame.sw,frame.sh,x-frame.center*scale,y-frame.foot*scale+bounce,frame.sw*scale,frame.sh*scale);
   c.imageSmoothingEnabled=false;
-  // Separate, faster foreground raster trees add depth without shifting the hero.
-  if(images.scenery) for(let i=0;i<3;i++) {
+  // Foreground trees only accompany the run; omit them entirely during the logo reveal.
+  if(images.scenery && f.title === 0) for(let i=0;i<3;i++) {
     const spacing=w*.85,offset=(f.travel*125*(h/540))%spacing;
     const tx=i*spacing-offset-w*.35, treeSize=stage*1.08;
     // Keep a clear window around Darami, especially on narrow screens.

@@ -60,6 +60,7 @@ export class Renderer {
         "forest-atlas",
         "forest-ground",
         "season-ground-soft",
+        "winter-ground-muted",
         "season-scenery",
         "combat-atlas",
         "boss-atlas",
@@ -311,14 +312,19 @@ export class Renderer {
     );
     const tile=480, im=this.images['season-ground-soft'];
     const layers=seasonLayers(g.season,g.time,g.seasonDuration),seasonBlend=layers.blend;
+    const drawGround = (season, x, y) => {
+      const winter = this.images['winter-ground-muted'];
+      if (season === 3) c.drawImage(winter, 0, 0, winter.width, winter.height, x, y, tile, tile);
+      else c.drawImage(im, ...groundFrame(im, season), x, y, tile, tile);
+    };
     c.imageSmoothingEnabled=false;
     for(let x=Math.floor((this.camera.x-W/2)/tile)*tile;x<this.camera.x+W/2+tile;x+=tile) {
       for(let y=Math.floor((this.camera.y-H/2)/tile)*tile;y<this.camera.y+H/2+tile;y+=tile) {
         c.globalAlpha=1;
-        c.drawImage(im,...groundFrame(im,layers.from),x,y,tile,tile);
+        drawGround(layers.from,x,y);
         if(layers.to!==layers.from) {
           c.globalAlpha=layers.blend;
-          c.drawImage(im,...groundFrame(im,layers.to),x,y,tile,tile);
+          drawGround(layers.to,x,y);
         }
       }
     }
@@ -355,8 +361,12 @@ export class Renderer {
       c.stroke();
       c.restore();
     }
-    c.strokeStyle = "#a4b08b";
-    c.lineWidth = 3;
+    // Dark continuous curb plus a light dashed edge remains visible on snow.
+    c.strokeStyle = "#253c39";
+    c.lineWidth = 9;
+    c.strokeRect(20, 20, WORLD - 40, WORLD - 40);
+    c.strokeStyle = "#d9c99a";
+    c.lineWidth = 2;
     c.setLineDash([10, 10]);
     c.strokeRect(20, 20, WORLD - 40, WORLD - 40);
     c.setLineDash([]);
@@ -395,7 +405,7 @@ export class Renderer {
     for (const d of g.drops) {
       if (d.type === "xp") {
         const r = d.value >= 20 ? 4.2 : d.value >= 6 ? 3 : 2;
-        this.circle(d.x, d.y, r + 2, "#7ddaaf", 0.16);
+        this.circle(d.x, d.y, r + 1.3, "#173d39", 0.95);
         this.circle(d.x, d.y, r, d.value >= 20 ? "#c0eddd" : "#9ddeb3");
       } else {
         const colors = { magnet: "#70d4e9", heal: "#b7e69b", power: "#f4bc65" };

@@ -1,5 +1,6 @@
 // Original synthesized foley; browsers may wait for a gesture before resuming.
 export class IntroAudio {
+  get running() { return Boolean(this.enabled && this.context?.state === "running"); }
   async enable() {
     if(this.closed)return;
     const request = this.request = (this.request || 0) + 1;

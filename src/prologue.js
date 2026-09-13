@@ -8,4 +8,4 @@ export const PROLOGUE = {
   images: ['ending-3','prologue-spring','prologue-spring'],
   shots: [{speaker:'다람이',cue:0},{speaker:'다람이',cue:1},{speaker:'다람이',cue:2}],
 };
-export const shouldPlayPrologue = ({year,checkpoint,seen}) => year===1 && !checkpoint && !seen;
+export const shouldPlayPrologue = ({year,checkpoint}) => year===1 && !checkpoint;

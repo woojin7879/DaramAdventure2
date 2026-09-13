@@ -35,7 +35,7 @@ body.is-menu { background: var(--paper); }
 .title-screen .chapter b { font: 13px var(--font-body); }
 .title-screen .chapter .chapter-name { font: 600 16px var(--font-body); }
 .title-screen .chapter small { font: 11px var(--font-body); text-align: right; color: var(--muted); }
-.title-screen .chapter-strip button.chapter.active { background: var(--panel); color: var(--ink); box-shadow: inset 3px 0 var(--accent); }
+.title-screen .chapter-strip button.chapter.active { background: var(--panel); color: var(--ink); box-shadow: none; }
 .title-screen .chapter-strip button.chapter[aria-disabled="true"] .chapter-name { color: var(--dim); }
 .title-screen .chapter-note { position: static; display: block; padding: 0; text-align: left; margin: 0 0 var(--space-lg); }
 .title-screen .chapter-note .eyebrow { display: block; color: var(--muted); font: 12px var(--font-body); letter-spacing: 0; margin: 0 0 var(--space-sm); }

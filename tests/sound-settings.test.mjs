@@ -38,3 +38,17 @@ test('muting while an autoplay resume is pending cannot turn intro sound back on
   const enabled=audio.enable();complete();await enabled;
   assert.equal(audio.enabled,true);
 });
+
+test('intro distinguishes an enabled preference from an actually running context', async () => {
+  const audio = new IntroAudio();
+  audio.enabled = true;
+  audio.wind = {};
+  audio.context = {state:'suspended',resume:async()=>{audio.context.state='running';}};
+  assert.equal(audio.running,false);
+  await audio.enable();
+  assert.equal(audio.running,true);
+  audio.context.state='suspended';
+  assert.equal(audio.running,false);
+  await audio.enable();
+  assert.equal(audio.running,true);
+});

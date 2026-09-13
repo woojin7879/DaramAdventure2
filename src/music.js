@@ -56,6 +56,15 @@ export class SeasonMusic {
       channel.pending = false;
     }
   }
+  // Authorize the actual menu audio element during the intro's user gesture,
+  // but keep it silent until the intro relinquishes audio ownership.
+  prime(season = 0) {
+    if (!this.enabled || this.active) return;
+    this.unlocked = true;
+    const channel = this.channel(season);
+    channel.audio.volume = 0;
+    this.play(channel);
+  }
   unlock(season = this.season) {
     this.unlocked = true;
     this.season = season;
@@ -71,8 +80,7 @@ export class SeasonMusic {
   setEnabled(enabled) {
     this.enabled = enabled;
     if (!enabled) this.suspend();
-    else if (this.unlocked) {
-      this.active = true;
+    else if (this.unlocked && this.active) {
       this.play(this.channel(this.season));
     }
   }
