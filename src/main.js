@@ -1,3 +1,4 @@
+import { readSoundSetting, saveSoundSetting } from "./sound-settings.js";
 import { itemIcon, prepareItemIcons } from "./item-icons.js";
 import { updateSoundControl } from "./sound-control.js";
 import { playIntro } from "./intro.js";
@@ -61,7 +62,7 @@ let selectedMode = "story",
   toastTimer,
   bannerTimer,
   helpWasPlaying = false,
-  sound = store.read("sound", true),
+  sound = readSoundSetting(),
   audioContext = null,
   previousFocus = null;
 const game = new Game({ onEvent: event });
@@ -554,12 +555,15 @@ $("start").onclick = () => begin();
 $("continue").onclick = () => begin(store.read("checkpoint"));
 $("pause").onclick = () => game.pause();
 $("help").onclick = showHelp;
-$("sound").onclick = () => {
-  sound = !sound;
-  store.write("sound", sound);
+function setSound(enabled, unlock = true) {
+  sound = Boolean(enabled);
+  saveSoundSetting(sound);
   updateSound();
   music.setEnabled(sound);
-  if (sound) music.unlock(game.season);
+  if (sound && unlock) music.unlock(game.season);
+}
+$("sound").onclick = () => {
+  setSound(!sound);
   tone(550, 0.12);
 };
 function updateSound() {
@@ -731,7 +735,7 @@ renderer
     updateChapters();
     updateContinue();
     if (previewYear !== null) showEnding(true);
-    else playIntro({onFinish: () => $("start").focus({preventScroll:true})});
+    else playIntro({soundEnabled: sound, onSoundChange: enabled => setSound(enabled, false), onFinish: () => $("start").focus({preventScroll:true})});
     requestAnimationFrame(loop);
   })
   .catch((error) => {

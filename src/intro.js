@@ -4,7 +4,7 @@ import { INTRO_DURATION, drawIntro } from './intro-scene.js';
 import { IntroAudio } from './intro-audio.js';
 import { opaqueBossAtlas } from './boss-opacity.js';
 
-export function playIntro({ onFinish = () => {} } = {}) {
+export function playIntro({ onFinish = () => {}, soundEnabled = true, onSoundChange = () => {} } = {}) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const layer = document.createElement('section');
   layer.className = 'game-intro';
@@ -19,6 +19,7 @@ export function playIntro({ onFinish = () => {} } = {}) {
   siblings.forEach(el => { el.inert = true; });document.body.append(layer);
   const canvas=layer.querySelector('canvas'), title=layer.querySelector('.intro-title');
   const audio=new IntroAudio();
+  let wantsSound = soundEnabled;
   const playback=new StoryPlayback();playback.duration=reduced?1.5:INTRO_DURATION;
   let ended=false,raf,timeout,previous=performance.now(),images=null;
   const resize=()=> {const ratio=Math.min(3,devicePixelRatio||1,Math.sqrt(8000000/(innerWidth*innerHeight)));canvas.width=Math.round(innerWidth*ratio);canvas.height=Math.round(innerHeight*ratio);};
@@ -31,6 +32,7 @@ export function playIntro({ onFinish = () => {} } = {}) {
     siblings.forEach((el,i)=>{el.inert=previousInert[i];});onFinish();
   };
   const keydown=event=> {
+    unlockAudio(event);
     if(event.code==='Escape'||((event.code==='Enter'||event.code==='Space')&&document.activeElement!==layer.querySelector('.intro-sound'))) {
       event.preventDefault();event.stopImmediatePropagation();finish();
     } else if(event.key==='Tab') {
@@ -55,14 +57,23 @@ export function playIntro({ onFinish = () => {} } = {}) {
   };
   layer.querySelector('.intro-skip').onclick=finish;
   const soundButton=layer.querySelector('.intro-sound');
-  updateSoundControl(soundButton, false);
-  soundButton.onclick=async()=> {
-    try {
-      if(audio.enabled)audio.mute();else await audio.enable();
-      if(ended){audio.close();return;}
-      updateSoundControl(soundButton, audio.enabled);
-    } catch {updateSoundControl(soundButton, false, true);}
+  const startAudio = () => {
+    if (ended || !wantsSound || audio.enabled) return;
+    audio.enable().catch(() => {});
   };
+  const unlockAudio = event => {
+    if (!soundButton.contains(event.target)) startAudio();
+  };
+  updateSoundControl(soundButton, wantsSound);
+  soundButton.onclick = () => {
+    wantsSound = !wantsSound;
+    onSoundChange(wantsSound);
+    updateSoundControl(soundButton, wantsSound);
+    if (wantsSound) startAudio(); else audio.mute();
+  };
+  // Preference stays on if autoplay is blocked; the next gesture retries it.
+  layer.addEventListener('pointerdown', unlockAudio);
+  if (wantsSound) startAudio();
   layer.querySelector('.intro-skip').focus({preventScroll:true});
   window.addEventListener('keydown',keydown,true);document.addEventListener('visibilitychange',visibility);
   const load=([key,url])=>new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve([key,image]);image.onerror=reject;image.src=url;});

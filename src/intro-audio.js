@@ -1,7 +1,8 @@
-// Small original synthesized foley bed, enabled only by a user gesture.
+// Original synthesized foley; browsers may wait for a gesture before resuming.
 export class IntroAudio {
   async enable() {
     if(this.closed)return;
+    const request = this.request = (this.request || 0) + 1;
     this.context ??= new (window.AudioContext || window.webkitAudioContext)();
     const c=this.context;
     if(!this.wind) {
@@ -11,9 +12,16 @@ export class IntroAudio {
       this.filter=c.createBiquadFilter();this.filter.type='lowpass';this.gain=c.createGain();
       this.wind.connect(this.filter).connect(this.gain).connect(c.destination);this.gain.gain.value=0;this.wind.start();
     }
-    await c.resume();if(!this.closed)this.enabled=true;
+    await c.resume();if(!this.closed && request === this.request)this.enabled=true;
   }
-  mute() {this.enabled=false;this.context?.suspend();}
+  mute() {
+    this.request=(this.request||0)+1;this.enabled=false;
+    if(this.gain) {
+      this.gain.gain.cancelScheduledValues(this.context.currentTime);
+      this.gain.gain.setValueAtTime(0,this.context.currentTime);
+    }
+    this.context?.suspend().catch(()=>{});
+  }
   update(t,frame) {
     if(!this.enabled)return;
     const c=this.context;
