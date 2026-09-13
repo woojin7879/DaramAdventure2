@@ -393,6 +393,14 @@ export const WEAPONS = [
       "각 비축고에서 탄환 2발",
     ],
   },
+  {
+    id: "boomerang", name: "참나무 부메랑", glyph: "‹", color: "#e5b878",
+    tag: "왕복 · 관통", desc: "앞으로 회전하며 날아갔다가 다람이에게 돌아옵니다. 왕복으로 적을 관통합니다.", max: 8,
+    stats: levels({damage:18,cooldown:2.8,count:1,range:260,speed:310,radius:12,returnPower:1},[
+      {damage:24},{range:320},{cooldown:2.3},{count:2},{damage:32},{radius:16},{cooldown:1.9,returnPower:1.3}
+    ]),
+    up: ["","피해 18 → 24","비행 거리 260 → 320","공격 간격 2.8 → 2.3초","부메랑 2개","피해 24 → 32","판정 반경 12 → 16","공격 간격 1.9초 · 돌아올 때 피해 +30%"],
+  },
 ];
 export const BY_ID = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
 export const PASSIVES = [

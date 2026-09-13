@@ -143,7 +143,7 @@ export class Game {
     for (const k of ["range", "radius", "width"])
       if (
         s[k] &&
-        ["tail", "stone", "vine", "fire", "ice", "spore"].includes(w.id)
+        ["tail", "stone", "vine", "fire", "ice", "spore", "boomerang"].includes(w.id)
       )
         s[k] *= area;
     if (s.cooldown) s.cooldown *= haste;
@@ -516,6 +516,15 @@ export class Game {
     }
     if (!t && w.id !== "ice") return;
     w.timer = s.cooldown;
+    if (w.id === "boomerang") {
+      const origin=bodyCenter(p);
+      for(let i=0;i<s.count&&this.bullets.length<240;i++) {
+        const direction=angle(origin,t)+(i-(s.count-1)/2)*.35;
+        this.bullets.push({id:++this.id,type:"boomerang",source:"boomerang",x:origin.x,y:origin.y,
+          vx:Math.cos(direction)*s.speed,vy:Math.sin(direction)*s.speed,life:5,r:s.radius,
+          travel:0,returning:false,age:0,trail:[],seen:new Set(),s:{...s}});
+      }
+    }
     if (w.id === "acorn") {
       for (let i = 0; i < s.count; i++)
         this.shoot("acorn", p, t, s, (i - (s.count - 1) / 2) * 0.21);
@@ -807,6 +816,26 @@ export class Game {
       }
     }
   }
+  updateBoomerang(b,dt) {
+    const before={x:b.x,y:b.y},home=bodyCenter(this.player);
+    b.age+=dt;b.life-=dt;
+    if(b.returning) {
+      const direction=angle(b,home),speed=b.s.speed*1.35;
+      const step=Math.min(dist(b,home),speed*dt);
+      b.x+=Math.cos(direction)*step;b.y+=Math.sin(direction)*step;
+    } else {
+      const step=Math.min(b.s.range-b.travel,b.s.speed*dt);
+      b.x+=b.vx/b.s.speed*step;b.y+=b.vy/b.s.speed*step;b.travel+=step;
+    }
+    const reach=dist(before,b)/2+b.r;
+    for(const e of this.grid.near((before.x+b.x)/2,(before.y+b.y)/2,reach)) {
+      if(b.seen.has(e.id)||distanceToSegment(e,before,b)>e.r+b.r)continue;
+      b.seen.add(e.id);
+      this.damage(e,b.s.damage*(b.returning?b.s.returnPower:1),"#edc58b",0,"boomerang");
+    }
+    if(b.returning&&dist(b,home)<8)b.life=0;
+    if(!b.returning&&b.travel>=b.s.range) {b.returning=true;b.seen.clear();}
+  }
   updateBullets(dt) {
     for (const b of this.bullets) {
       if (b.life <= 0) continue;
@@ -814,6 +843,7 @@ export class Game {
         b.trail.push({ x: b.x, y: b.y });
         if (b.trail.length > 9) b.trail.shift();
       }
+      if(b.type === "boomerang") { this.updateBoomerang(b,dt); continue; }
       const ox = b.x,
         oy = b.y;
       b.x += b.vx * dt;

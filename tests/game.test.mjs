@@ -21,8 +21,8 @@ const enemy = (g, type = "snake", x = 1230, y = 1200) => {
   g.grid.rebuild(g.enemies);
   return e;
 };
-test("all 12 weapons have contiguous levels and upgrade descriptions", () => {
-  assert.equal(WEAPONS.length, 12);
+test("all 13 weapons have contiguous levels and upgrade descriptions", () => {
+  assert.equal(WEAPONS.length, 13);
   for (const w of WEAPONS) {
     assert.equal(w.stats.length, w.max, w.id);
     assert.equal(w.up.length, w.max, w.id);

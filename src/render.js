@@ -1,3 +1,4 @@
+import { drawSkyShield, drawBoomerang } from "./weapon-art.js";
 import { opaqueBossAtlas } from "./boss-opacity.js";
 import { seasonLayers, groundFrame, sceneryPlacement } from "./season-art.js";
 import { drawPatternSprite, drawVenomSprite, drawBossCastSprite } from "./boss-vfx.js";
@@ -487,17 +488,6 @@ export class Renderer {
       if (o.kind === "player") {
         this.shadow(o.x, o.y, 22);
         const shield = g.weapons.find((w) => w.id === "charm");
-        if (shield?.shields > 0) {
-          const center = bodyCenter(p);
-          c.save();
-          c.strokeStyle = "#d1edb4";
-          c.lineWidth = 1.2;
-          c.globalAlpha = 0.22 + (this.reduced ? 0 : Math.sin(t * 2) * 0.04);
-          c.beginPath();
-          c.ellipse(center.x, center.y, 28, 31, 0, 0, Math.PI * 2);
-          c.stroke();
-          c.restore();
-        }
         let frame = 0;
         if (p.hp <= 0) frame = 5;
         else if (p.invuln > 0.2 && p.invuln < 0.85) frame = 3;
@@ -511,6 +501,10 @@ export class Renderer {
           p.facing > 0,
           p.invuln > 0 && Math.floor(t * 14) % 2 === 0 ? 0.55 : 1,
         );
+        if (shield?.shields > 0) {
+          const center=bodyCenter(p);
+          drawSkyShield(c,center.x,center.y,{time:this.reduced?0:t});
+        }
         if (title) {
           c.textAlign = "center";
           c.font = "600 12px sans-serif";
@@ -737,6 +731,8 @@ export class Renderer {
           40,
         );
         c.restore();
+      } else if (b.type === "boomerang") {
+        drawBoomerang(c,b);
       } else if (bounce) {
         this.circle(b.x, b.y, 15, "#64ddc7", 0.13);
         c.save();
@@ -881,43 +877,13 @@ export class Renderer {
       if (f.type === "whip") this.drawWhip(f);
       if (f.type === "bolt") this.drawBolt(f);
       if (f.type === "shieldReady") {
-        const progress = 1 - f.life / f.total;
-        c.lineWidth = 2;
-        c.strokeStyle = "#e0f6bf";
-        c.beginPath();
-        c.ellipse(
-          f.x,
-          f.y,
-          22 + progress * 16,
-          26 + progress * 16,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        c.stroke();
-        for (let j = 0; j < 6; j++) {
-          const a = (j * Math.PI) / 3,
-            r = 38 - progress * 10;
-          this.circle(
-            f.x + Math.cos(a) * r,
-            f.y + Math.sin(a) * r,
-            2,
-            "#e7ffc9",
-            (1 - progress) * 0.8,
-          );
-        }
+        const progress=1-f.life/f.total;
+        drawSkyShield(c,f.x,f.y,{strength:(1-progress)*1.4,scale:1+progress*.22});
       }
       if (f.type === "ward") {
         const progress = 1 - f.life / f.total;
-        this.sprite(
-          21,
-          f.x,
-          f.y + 16 - progress * 18,
-          48 + progress * 10,
-          false,
-          1 - progress,
-        );
-        c.strokeStyle = "#efd49b";
+        drawSkyShield(c,f.x,f.y,{strength:(1-progress)*1.5,scale:1+progress*.4});
+        c.strokeStyle = "#a5e1ff";
         for (let j = 0; j < 8; j++) {
           const a = (j * Math.PI) / 4,
             r = 18 + progress * 25;

@@ -475,7 +475,7 @@ function showHelp() {
   if (game.state === "levelup") return;
   showModal(
     "help",
-    `<span class="eyebrow">HOW TO SURVIVE</span><h2 id="modal-title">작은 발걸음, 큰 선택</h2><div class="help-list"><p><span>이동</span><span><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / 방향키</span></p><p><span>공격</span><span>가까운 적을 향해 자동 공격</span></p><p><span>성장</span><span>작은 빛을 모아 레벨업</span></p><p><span>특별 도토리</span><span>회복 · 자석 · 공격 강화</span></p><p><span>장착 무기</span><span>12종 중 최대 6칸</span></p><p><span>일시정지</span><span><kbd>ESC</kbd></span></p></div><p class="sub">사계절을 버틴 뒤 각 연차의 보스를 쓰러뜨리세요.<br>이야기는 한 해를 마친 뒤에 이어집니다.</p><div class="modal-actions"><button class="primary" id="close-help">알겠어요</button></div>`,
+    `<span class="eyebrow">HOW TO SURVIVE</span><h2 id="modal-title">작은 발걸음, 큰 선택</h2><div class="help-list"><p><span>이동</span><span><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / 방향키</span></p><p><span>공격</span><span>가까운 적을 향해 자동 공격</span></p><p><span>성장</span><span>작은 빛을 모아 레벨업</span></p><p><span>특별 도토리</span><span>회복 · 자석 · 공격 강화</span></p><p><span>장착 무기</span><span>13종 중 최대 6칸</span></p><p><span>일시정지</span><span><kbd>ESC</kbd></span></p></div><p class="sub">사계절을 버틴 뒤 각 연차의 보스를 쓰러뜨리세요.<br>이야기는 한 해를 마친 뒤에 이어집니다.</p><div class="modal-actions"><button class="primary" id="close-help">알겠어요</button></div>`,
   );
   $("close-help").onclick = () => {
     closeModal();
