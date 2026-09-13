@@ -143,7 +143,7 @@ export class Game {
     for (const k of ["range", "radius", "width"])
       if (
         s[k] &&
-        ["tail", "stone", "vine", "fire", "ice", "spore", "boomerang"].includes(w.id)
+        ["tail", "stone", "vine", "fire", "ice", "spore", "boomerang", "seed"].includes(w.id)
       )
         s[k] *= area;
     if (s.cooldown) s.cooldown *= haste;
@@ -514,8 +514,22 @@ export class Game {
       w.timer = s.interval;
       return;
     }
-    if (!t && w.id !== "ice") return;
+    if (!t && !["ice", "seed"].includes(w.id)) return;
     w.timer = s.cooldown;
+    if (w.id === "seed") {
+      const origin = bodyCenter(p);
+      const direction = s.alternate && w.seedDirection === 1 ? -1 : 1;
+      w.seedDirection = direction;
+      for (let i = 0; i < s.count && this.bullets.length < 240; i++) {
+        this.bullets.push({
+          id: ++this.id, type: "seed", source: "seed", ...origin,
+          origin: { ...origin }, phase: i * Math.PI * 2 / s.count,
+          direction, age: 0, life: s.duration, r: s.radius,
+          trail: [], seen: new Set(), s: { ...s },
+        });
+      }
+      return;
+    }
     if (w.id === "boomerang") {
       const origin=bodyCenter(p);
       for(let i=0;i<s.count&&this.bullets.length<240;i++) {
@@ -816,6 +830,22 @@ export class Game {
       }
     }
   }
+  updateSeed(b, dt) {
+    const before = { x: b.x, y: b.y };
+    b.age = Math.min(b.s.duration, b.age + dt);
+    b.life -= dt;
+    const radius = b.s.range * b.age / b.s.duration;
+    const theta = b.phase + b.direction * b.age * b.s.spin;
+    b.x = b.origin.x + Math.cos(theta) * radius;
+    b.y = b.origin.y + Math.sin(theta) * radius;
+    const reach = dist(before, b) / 2 + b.r;
+    for (const e of this.grid.near((before.x + b.x) / 2, (before.y + b.y) / 2, reach)) {
+      if (b.seen.has(e.id) || distanceToSegment(e, before, b) > e.r + b.r) continue;
+      b.seen.add(e.id);
+      this.damage(e, b.s.damage, "#d9e9b6", 0, "seed");
+      this.slow(e, b.s.slow, b.s.slowDuration);
+    }
+  }
   updateBoomerang(b,dt) {
     const before={x:b.x,y:b.y},home=bodyCenter(this.player);
     b.age+=dt;b.life-=dt;
@@ -843,6 +873,7 @@ export class Game {
         b.trail.push({ x: b.x, y: b.y });
         if (b.trail.length > 9) b.trail.shift();
       }
+      if (b.type === "seed") { this.updateSeed(b, dt); continue; }
       if(b.type === "boomerang") { this.updateBoomerang(b,dt); continue; }
       const ox = b.x,
         oy = b.y;

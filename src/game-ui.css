@@ -1,0 +1,155 @@
+/* Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4
+ * genre: playful · macrostructure: Workbench / field journal
+ * design-system: design.md · designed-as-app */
+html, body { overflow-x: clip; }
+button, input, select { font-family: var(--font-body); }
+button { border-radius: var(--radius-control); }
+button:hover:not(:disabled) { filter: none; }
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+h1, h2, h3 { min-width: 0; font-style: normal; }
+body:not(.is-menu):not(.lab-page):not(.admin-hub) .masthead { height: 44px; min-height: 44px; padding: var(--space-xs) var(--space-lg); }
+body:not(.is-menu) .masthead .edition { display: none; }
+.wordmark { font: 600 13px var(--font-body); letter-spacing: 0; gap: var(--space-xs); }
+.brand-mark { display: none; }
+body:not(.is-menu) .game-shell { width: 100%; margin: 0; border: 0; height: calc(100svh - 44px); min-height: 260px; max-height: none; }
+.hud-top { height: 92px; padding: var(--space-md) var(--space-lg); }
+.health-box { width: clamp(96px, 19vw, 200px); padding: var(--space-sm); background: var(--hud-surface); border-radius: var(--radius-control); }
+.hud-label { margin-bottom: var(--space-xs); gap: var(--space-xs); }
+.health-track { height: 6px; border: 0; }
+.hud-label b { font-weight: 600; }
+.season-clock { top: var(--space-md); }
+.season-clock strong { font: 600 30px/1.3 var(--font-body); font-variant-numeric: tabular-nums; letter-spacing: .03em; }
+.season-clock > span { color: var(--ink); font-size: 12px; letter-spacing: 0; }
+.kill-box { padding: var(--space-xs) var(--space-sm); gap: var(--space-xs); background: var(--hud-surface); border-radius: var(--radius-control); }
+.kill-box b { font: 600 18px var(--font-body); font-variant-numeric: tabular-nums; }
+.kill-box button { min-height: 32px; margin-left: var(--space-xs); border: 0; }
+.xp-line { padding: 0 var(--space-lg); gap: var(--space-sm); color: var(--ink); font: 11px var(--font-body); }
+.xp-track { height: 3px; }
+.boss-hud { background: var(--hud-surface); padding: var(--space-sm) var(--space-md); border-radius: var(--radius-control); }
+.hud-bottom { bottom: var(--space-md); left: var(--space-lg); right: var(--space-lg); gap: var(--space-sm); flex-wrap: wrap; }
+.weapon-slots { padding: var(--space-xs); gap: var(--space-2xs); background: var(--hud-surface); border-radius: var(--radius-control); }
+.weapon-slot { width: 48px; height: 51px; background: var(--panel); border: 0; border-bottom: 2px solid var(--line); }
+.weapon-slot.empty { opacity: .65; border-style: solid; background: var(--clear); }
+.weapon-slot small { font: 10px var(--font-body); }
+.passive-slots { gap: var(--space-xs); background: var(--hud-surface); padding: var(--space-xs); border-radius: var(--radius-control); }
+.passive-slots:empty { display: none; }
+.passive-slots > span { display: flex; align-items: end; }
+.item-icon { display: inline-block; width: 36px; height: 36px; flex: 0 0 auto; vertical-align: middle; background-image: var(--item-atlas); background-size: 500% 400%; background-repeat: no-repeat; }
+.item-icon:not([data-icon]) { background-image: none; }
+.weapon-slot .item-icon { width: 34px; height: 34px; }
+.passive-slots .item-icon { width: 26px; height: 26px; }
+.modal:not(:has([data-kind="ending"])) { position: fixed; inset: 0; padding: clamp(12px, 3vw, 40px); background: var(--overlay); }
+.modal-inner:not([data-kind="ending"]) { width: min(760px, 100%); text-align: left; margin: auto; padding: var(--space-xl); background: var(--panel); border-top: 3px solid var(--accent); border-radius: var(--radius-control); max-height: none; }
+.modal-inner:not([data-kind="ending"]) > .eyebrow { justify-content: flex-start; font: 12px var(--font-body); letter-spacing: .03em; color: var(--muted); }
+.modal-inner:not([data-kind="ending"]) h2 { font: 700 clamp(24px, 3vw, 32px)/1.4 var(--font-display); margin: var(--space-xs) 0 var(--space-sm); }
+.modal-inner:not([data-kind="ending"]) .sub { font-size: 13px; }
+.modal-inner[data-kind="levelup"] { background: var(--journal-paper); color: var(--journal-ink); border-top-color: var(--journal-ink); }
+[data-kind="levelup"] > .eyebrow, [data-kind="levelup"] .sub { color: var(--journal-muted) !important; }
+.upgrade-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: var(--space-lg); border-top: 1px solid var(--journal-line); }
+.upgrade-card { display: grid; grid-template-columns: 60px minmax(0, 1fr) 28px; grid-template-areas: 'icon category key' 'icon name key' 'icon desc key' 'icon level key'; column-gap: var(--space-md); min-height: 0; padding: var(--space-md) var(--space-xs); background: var(--clear); border: 0; border-bottom: 1px solid var(--journal-line); border-radius: 0; color: var(--journal-ink); transition: background var(--dur-short) var(--ease-out); }
+.upgrade-card:hover { transform: none; background: var(--journal-hover); border-color: var(--journal-line); }
+.upgrade-card:focus-visible { outline: 2px solid var(--journal-ink); outline-offset: -2px; background: var(--journal-hover); }
+.upgrade-card .upgrade-icon { position: static; grid-area: icon; align-self: center; margin: 0; width: 60px; height: 60px; }
+.upgrade-card .upgrade-icon .item-icon { width: 60px; height: 60px; }
+.upgrade-card .category { grid-area: category; color: var(--journal-muted); font-size: 11px; }
+.upgrade-card h3 { grid-area: name; font: 700 18px/1.4 var(--font-body); margin: var(--space-2xs) 0; }
+.upgrade-card .desc { grid-area: desc; color: var(--journal-muted); line-height: 1.5; font-size: 13px; }
+.upgrade-card .upgrade-bottom { grid-area: level; justify-content: start; margin: var(--space-xs) 0 0; color: var(--journal-muted); font: 11px var(--font-body); }
+.upgrade-card .shortcut { grid-area: key; position: static; align-self: center; justify-self: end; border: 1px solid var(--journal-line); border-radius: var(--radius-control); padding: var(--space-2xs) var(--space-xs); color: var(--journal-muted); }
+.upgrade-hint { margin-top: var(--space-md); }
+.modal-inner:not([data-kind="ending"]) .modal-actions { justify-content: flex-start; gap: var(--space-xs); margin: var(--space-lg) 0 0; }
+.modal-inner:not([data-kind="ending"]) .modal-actions button { background: var(--panel-raised); color: var(--ink); min-height: 44px; }
+.modal-inner:not([data-kind="ending"]) .modal-actions button.primary { background: var(--journal-paper); color: var(--journal-ink); border-color: var(--journal-paper); }
+.modal-inner[data-kind="pause"], .modal-inner[data-kind="help"] { max-width: 520px; }
+.help-list { max-width: none; margin: var(--space-lg) 0; }
+.result-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-lg); justify-content: start; margin: var(--space-lg) 0; padding-bottom: var(--space-lg); border-bottom: 1px solid var(--line); }
+.result-stats b { font: 600 clamp(24px, 4vw, 38px) var(--font-body); font-variant-numeric: tabular-nums; }
+.run-details { margin-top: var(--space-lg); }
+.run-details h3 { font-size: 16px; }
+.damage-table th, .damage-table td { border-color: var(--line); padding: var(--space-sm) var(--space-xs); font-variant-numeric: tabular-nums; }
+.damage-table thead { color: var(--muted); font-size: 12px; }
+.damage-table tbody th { min-width: 150px; }
+.damage-table .item-icon { width: 30px; height: 30px; margin-right: var(--space-2xs); }
+.damage-track { background: var(--paper); height: 3px; }
+.combat-totals { gap: var(--space-sm) var(--space-lg); }
+.run-details details, .growth-history li { border-color: var(--line); }
+.run-details summary { padding: var(--space-xs) 0; }
+.growth-history .item-icon { width: 24px; height: 24px; }
+[data-kind="result"] .modal-actions { background: var(--panel); bottom: 0; padding: var(--space-md) 0; }
+[data-kind="ending"] .story-speaker { color: var(--accent); font: 600 14px var(--font-body); letter-spacing: .03em; }
+[data-kind="ending"] .ending-copy { font-family: var(--font-body); text-shadow: 0 2px 8px var(--cinema-shadow); }
+[data-kind="ending"] .modal-actions button { background: var(--hud-surface); color: var(--ink); border-color: var(--line); }
+.lab-header small { letter-spacing: 0; }
+.lab-header h1, .admin-hub h1 { font-family: var(--font-display); }
+.lab-controls { border-top: 3px solid var(--accent); }
+.lab-weapons { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.lab-weapons button { display: flex; align-items: center; gap: var(--space-xs); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--clear); min-height: 44px; white-space: nowrap; }
+.lab-weapons button[aria-pressed="true"] { background: var(--panel-raised); color: var(--ink); box-shadow: inset 3px 0 var(--accent); }
+.lab-weapons .item-icon { width: 32px; height: 32px; }
+.lab-caption { background: var(--hud-surface); }
+.lab-controls label .item-icon { width: 26px; height: 26px; margin-right: var(--space-xs); }
+.lab-header { flex-wrap: wrap; }
+.lab-row { flex-wrap: wrap; }
+.boss-telemetry progress { accent-color: var(--accent); }
+.admin-hub nav { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.admin-hub nav a { border: 0; border-bottom: 1px solid var(--line); padding: var(--space-lg) 0; background: var(--clear); text-decoration: none; }
+.admin-hub nav a:hover { color: var(--accent); }
+@media (max-width: 768px) {
+  .hud-top { padding: var(--space-sm); }
+  .health-box { padding: var(--space-xs); }
+  .hud-label { flex-wrap: wrap; gap: var(--space-2xs); }
+  .kill-box { padding: var(--space-2xs) var(--space-xs); gap: var(--space-2xs); }
+  .kill-box > span { display: none; }
+  .xp-line { padding: 0 var(--space-sm); }
+  .hud-bottom { left: var(--space-sm); right: var(--space-sm); bottom: var(--space-sm); gap: var(--space-xs); }
+  .weapon-slot { width: 38px; height: 44px; }
+  .weapon-slot .item-icon { width: 28px; height: 28px; }
+  .pause-hint { display: none; }
+  .modal-inner:not([data-kind="ending"]) { padding: var(--space-lg); }
+  .run-details h3 { flex-direction: column; gap: var(--space-xs); }
+  .lab-weapons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 414px) {
+  body:not(.is-menu):not(.lab-page):not(.admin-hub) .masthead { padding-inline: var(--space-sm); }
+  .masthead .wordmark { font-size: 12px; }
+  .masthead .icon-button { font-size: 12px; }
+  .masthead .top-actions { gap: var(--space-sm); }
+  .modal-inner:not([data-kind="ending"]) { padding: var(--space-md); }
+  .upgrade-card { grid-template-columns: 42px minmax(0, 1fr) 22px; column-gap: var(--space-sm); padding-block: var(--space-sm); }
+  .upgrade-card .upgrade-icon, .upgrade-card .upgrade-icon .item-icon { width: 42px; height: 42px; }
+  .upgrade-card h3 { font-size: 16px; }
+  .upgrade-card .desc { font-size: 12px; }
+  .upgrade-card .shortcut { padding: var(--space-2xs); }
+  .result-stats { gap: var(--space-sm); }
+  .combat-totals { grid-template-columns: minmax(0, 1fr); }
+  .damage-table table { min-width: 420px; }
+  .health-box { width: 94px; }
+  .season-clock strong { font-size: 26px; }
+  .season-clock > span { font-size: 10px; }
+  .passive-slots .item-icon { width: 22px; height: 22px; }
+  .lab-weapons { grid-template-columns: minmax(0, 1fr); }
+  .lab-header h1 { font-size: 24px; }
+}
+@media (max-height: 600px) {
+  .modal-inner:not([data-kind="ending"]) { padding-block: var(--space-md); }
+  .upgrade-grid { margin-top: var(--space-sm); }
+  .upgrade-card { padding-block: var(--space-xs); }
+  .upgrade-hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .upgrade-card, .health-track > div { transition: none; }
+}
+.sound-control, .intro-controls .sound-control { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-width: 44px; min-height: 44px; white-space: nowrap; }
+.sound-icon { width: 23px; height: 23px; flex: 0 0 auto; }
+.sound-control[aria-pressed="true"] .sound-icon { color: var(--accent); }
+.sound-control[aria-pressed="false"] .sound-icon { color: var(--muted); }
+.sound-state { font: 12px var(--font-body); }
+.lab-equipped .item-icon { width: 24px; height: 24px; }
+@media (max-width: 414px) { .masthead .sound-state { display: none; } }
+
+.masthead .wordmark b { display: inline; }
+#lab-metrics .item-icon, .stat-note .item-icon { width: 24px; height: 24px; }
+
+.modal:not(:has([data-kind="ending"])) { align-items: safe center; }
+.masthead .icon-button { min-height: 44px; }
+@media (max-width: 600px) { [data-kind="ending"] .sound-state { display: none; } }

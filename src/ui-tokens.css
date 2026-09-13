@@ -1,0 +1,42 @@
+/* Hallmark · genre: playful · design-system: design.md · designed-as-app
+ * Forest field journal: charcoal pine, warm paper, acorn brass. */
+:root {
+  --paper: oklch(19% .018 150);
+  --panel: oklch(24% .022 145);
+  --panel-raised: oklch(30% .025 140);
+  --ink: oklch(94% .025 85);
+  --muted: oklch(76% .022 110);
+  --dim: oklch(66% .024 110);
+  --accent: oklch(82% .095 80);
+  --accent-dark: oklch(25% .035 70);
+  --green: oklch(76% .095 125);
+  --health: var(--green);
+  --line: oklch(48% .035 130);
+  --danger: oklch(76% .105 40);
+  --shadow: oklch(12% .015 150 / .65);
+  --overlay: oklch(15% .018 150 / .92);
+  --clear: oklch(19% .018 150 / 0);
+  --journal-paper: oklch(92% .032 85);
+  --journal-hover: oklch(97% .025 85);
+  --journal-ink: oklch(26% .025 85);
+  --journal-muted: oklch(46% .025 85);
+  --journal-line: oklch(75% .035 85);
+  --hud-surface: oklch(17% .025 145 / .91);
+  --cinema-shadow: oklch(10% .01 140 / .9);
+  --font-body: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-display: "AppleMyungjo", "Batang", "Iowan Old Style", serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px;
+  --space-lg: 24px; --space-xl: 32px; --space-2xl: 48px; --space-3xl: 64px;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --dur-short: 150ms;
+  --radius-control: 3px;
+}
+:root {
+  --item-atlas: url('/assets/inventory-icons.png');
+  /* Shared intro aliases preserve the established title animation. */
+  --menu-paper: var(--paper); --menu-ink: var(--ink); --menu-muted: var(--muted);
+  --menu-line: var(--line); --menu-accent: var(--accent); --menu-shadow: var(--shadow);
+  --menu-glass: var(--hud-surface); --menu-font: var(--font-body); --menu-display: var(--font-body);
+  --menu-clear: var(--clear);
+}

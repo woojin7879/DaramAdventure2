@@ -1,3 +1,4 @@
+import { itemIcon, prepareItemIcons } from "./item-icons.js";
 import { bossSpriteFrame, BOSS_POSES } from "./boss-animation.js";
 import { restartBossTrial } from "./boss-trial.js";
 import { chapter } from "./chapters.js";
@@ -5,6 +6,7 @@ import { bodyCenter } from "./geometry.js";
 import { Game } from "./game.js";
 import { Renderer } from "./render.js";
 import { BY_ID, WEAPONS, PASSIVES } from "./data.js";
+prepareItemIcons().catch(error => console.warn(error.message));
 const $ = (id) => document.getElementById(id);
 const bossTrial = document.body.dataset.bossTrial === "true";
 const game = new Game();
@@ -100,7 +102,7 @@ function updateControls() {
     game.weapons
       .map(
         (w) =>
-          `<button data-remove="${w.id}" title="클릭하면 제거">${BY_ID[w.id].name} Lv.${w.level} ×</button>`,
+          `<button data-remove="${w.id}" title="클릭하면 제거">${itemIcon(w.id)}${BY_ID[w.id].name} Lv.${w.level} ×</button>`,
       )
       .join("") || "<p>무기를 선택하세요.</p>";
   for (const b of $("lab-equipped").children)
@@ -177,7 +179,7 @@ function togglePause() {
 }
 $("lab-weapons").innerHTML = WEAPONS.map(
   (w) =>
-    `<button data-weapon="${w.id}" aria-pressed="false">${w.glyph} ${w.name}</button>`,
+    `<button data-weapon="${w.id}" aria-pressed="false">${itemIcon(w.id)} ${w.name}</button>`,
 ).join("");
 for (const b of $("lab-weapons").children)
   b.onclick = () => equip(b.dataset.weapon);
@@ -186,7 +188,7 @@ $("lab-passives").innerHTML = PASSIVES.filter((p) =>
 )
   .map(
     (p) =>
-      `<label>${p.name}<output>0</output><input type="range" min="0" max="5" value="0" data-passive="${p.id}"></label>`,
+      `<label>${itemIcon(p.id)}${p.name}<output>0</output><input type="range" min="0" max="5" value="0" data-passive="${p.id}"></label>`,
   )
   .join("");
 for (const input of $("lab-passives").querySelectorAll("input"))
@@ -287,7 +289,7 @@ function loop(now) {
       `<table><thead><tr><th>무기</th><th>실제 피해</th><th>DPS</th><th>명중</th></tr></thead><tbody>${game.weapons
         .map((w) => {
           const r = game.weaponRecord(w.id);
-          return `<tr><td>${BY_ID[w.id].name}</td><td>${Math.round(r.damage).toLocaleString()}</td><td>${(r.damage / Math.max(1, game.time - r.acquired)).toFixed(1)}</td><td>${r.hits}</td></tr>`;
+          return `<tr><td>${itemIcon(w.id)} ${BY_ID[w.id].name}</td><td>${Math.round(r.damage).toLocaleString()}</td><td>${(r.damage / Math.max(1, game.time - r.acquired)).toFixed(1)}</td><td>${r.hits}</td></tr>`;
         })
         .join(
           "",

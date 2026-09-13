@@ -1,3 +1,4 @@
+import { itemIcon } from "./item-icons.js";
 import { chapter } from "./chapters.js";
 import { BY_ID, PASSIVES, SEASONS } from "./data.js";
 const number = (n) => Math.round(n).toLocaleString("ko-KR");
@@ -35,7 +36,7 @@ export function resultDetails(report) {
       .map((w) => {
         const d = BY_ID[w.id],
           percent = total ? (w.damage / total) * 100 : 0;
-        return `<tr><th scope="row"><span style="color:${d.color}">${d.glyph}</span> ${d.name}<small>Lv.${w.level} / ${d.max}${w.id === "charm" ? ` · ${number(report.blocked)}회 방어` : ""}</small></th><td>${number(w.damage)} <small>${percent.toFixed(1)}%</small><span class="damage-track"><span style="width:${percent}%;background:${d.color}"></span></span></td><td>${(w.damage / Math.max(1, report.time - w.acquired)).toFixed(1)}</td><td>${number(w.kills)}</td></tr>`;
+        return `<tr><th scope="row">${itemIcon(w.id)} ${d.name}<small>Lv.${w.level} / ${d.max}${w.id === "charm" ? ` · ${number(report.blocked)}회 방어` : ""}</small></th><td>${number(w.damage)} <small>${percent.toFixed(1)}%</small><span class="damage-track"><span style="width:${percent}%;background:${d.color}"></span></span></td><td>${(w.damage / Math.max(1, report.time - w.acquired)).toFixed(1)}</td><td>${number(w.kills)}</td></tr>`;
       })
       .join("")}</tbody></table></div>
     <div class="combat-totals"><span>받은 피해 <b>${number(report.taken)}</b></span><span>실제 회복 <b>${number(report.healed)}</b></span><span>방어 <b>${number(report.blocked)}회</b></span><span>획득 경험치 <b>${number(report.xp)}</b></span><span>이동 거리 <b>${number(report.distance / 32)}m</b></span><span>도토리 <b>자석 ${report.specials.magnet} · 힘 ${report.specials.power} · 회복 ${report.specials.heal}</b></span></div>
@@ -55,12 +56,12 @@ export function resultDetails(report) {
             : h.kind === "passive"
               ? PASSIVES.find((p) => p.id === h.id)
               : { name: "숲의 휴식", glyph: "♡" };
-        return `<li><time>${clock(h.time)}</time><span class="growth-meta">${SEASONS[h.season].name} · Lv.${h.playerLevel}</span><span>${d.glyph} ${d.name} <b>${h.kind === "heal" ? "회복" : `Lv.${h.level}`}</b></span><small>${h.kind === "heal" ? "" : h.level === 1 ? "획득" : "강화"}</small></li>`;
+        return `<li><time>${clock(h.time)}</time><span class="growth-meta">${SEASONS[h.season].name} · Lv.${h.playerLevel}</span><span>${itemIcon(h.kind === "heal" ? "heal" : h.id)} ${d.name} <b>${h.kind === "heal" ? "회복" : `Lv.${h.level}`}</b></span><small>${h.kind === "heal" ? "" : h.level === 1 ? "획득" : "강화"}</small></li>`;
       })
       .join("")}</ol></details>
     <p class="stat-note">패시브 · ${
       PASSIVES.filter((p) => report.passives[p.id])
-        .map((p) => `${p.name} Lv.${report.passives[p.id]}`)
+        .map((p) => `${itemIcon(p.id)} ${p.name} Lv.${report.passives[p.id]}`)
         .join(" / ") || "없음"
     }</p>
   </section>`;

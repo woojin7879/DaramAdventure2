@@ -401,6 +401,15 @@ export const WEAPONS = [
     ]),
     up: ["","피해 18 → 24","비행 거리 260 → 320","공격 간격 2.8 → 2.3초","부메랑 2개","피해 24 → 32","판정 반경 12 → 16","공격 간격 1.9초 · 돌아올 때 피해 +30%"],
   },
+  {
+    id: "seed", name: "바람개비 씨앗", glyph: "✣", color: "#c9db9b",
+    tag: "나선 확산 · 감속", desc: "날개 달린 씨앗이 몸 중심에서 나선형으로 퍼집니다. 스친 적의 발걸음을 늦춥니다.", max: 8,
+    stats: levels(
+      { damage: 10, cooldown: 3.6, count: 3, range: 200, duration: 1.8, radius: 9, spin: 2.8, slow: 0.15, slowDuration: 0.8, alternate: false },
+      [{damage:14}, {count:4}, {range:240}, {cooldown:3}, {count:5}, {damage:20}, {count:6, alternate:true, slow:0.25}],
+    ),
+    up: ["", "피해 10 → 14", "씨앗 3 → 4개", "확산 거리 200 → 240", "공격 간격 3.6 → 3초", "씨앗 4 → 5개", "피해 14 → 20", "씨앗 6개 · 회전 방향 교대 · 감속 25%"],
+  },
 ];
 export const BY_ID = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
 export const PASSIVES = [

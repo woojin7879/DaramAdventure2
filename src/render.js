@@ -1,4 +1,4 @@
-import { drawSkyShield, drawBoomerang } from "./weapon-art.js";
+import { drawSkyShield, drawBoomerang, drawSeed } from "./weapon-art.js";
 import { opaqueBossAtlas } from "./boss-opacity.js";
 import { seasonLayers, groundFrame, sceneryPlacement } from "./season-art.js";
 import { drawPatternSprite, drawVenomSprite, drawBossCastSprite } from "./boss-vfx.js";
@@ -731,6 +731,8 @@ export class Renderer {
           40,
         );
         c.restore();
+      } else if (b.type === "seed") {
+        drawSeed(c, b);
       } else if (b.type === "boomerang") {
         drawBoomerang(c,b);
       } else if (bounce) {

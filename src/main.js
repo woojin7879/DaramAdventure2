@@ -1,3 +1,5 @@
+import { itemIcon, prepareItemIcons } from "./item-icons.js";
+import { updateSoundControl } from "./sound-control.js";
 import { playIntro } from "./intro.js";
 import { PROLOGUE, shouldPlayPrologue } from "./prologue.js";
 import { hellUnlocked, hellBossTime } from "./hell.js";
@@ -16,6 +18,7 @@ import { Game } from "./game.js";
 import { Renderer } from "./render.js";
 import { BY_ID, WEAPONS, PASSIVES, SEASONS, xpRequired } from "./data.js";
 const storyPlayback = new StoryPlayback();
+prepareItemIcons().catch(error => console.warn(error.message));
 const $ = (id) => document.getElementById(id);
 const previewParam = new URLSearchParams(location.search).get("preview");
 const previewYear = previewParam !== null && /^[0-3]$/.test(previewParam) ? Number(previewParam) : null;
@@ -234,7 +237,7 @@ function updateChapters() {
   $("journey-progress").textContent = `${cleared.length} / 3 완료`;
   document.querySelector(".chapter-strip").innerHTML = CHAPTERS.map(c => {
     const unlocked = canPlayYear(c.id, cleared, quick);
-    return `<button class="chapter ${selectedYear === c.id ? 'active' : ''}" data-year="${c.id}" aria-pressed="${selectedYear === c.id}" aria-disabled="${!unlocked}" aria-label="${c.id}년차 ${c.name}${!unlocked ? ', 잠김' : ''}"><b>${c.id}년차</b><small>${cleared.includes(c.id) ? '완료' : unlocked ? '도전' : '잠김'}</small></button>`;
+    return `<button class="chapter ${selectedYear === c.id ? 'active' : ''}" data-year="${c.id}" aria-pressed="${selectedYear === c.id}" aria-disabled="${!unlocked}" aria-label="${c.id}년차 ${c.name}${!unlocked ? ', 잠김' : ''}"><b>${c.id}년차</b><span class="chapter-name">${c.name}</span><small>${cleared.includes(c.id) ? '완료' : unlocked ? '도전' : '잠김'}</small></button>`;
   }).join("");
   document.querySelectorAll("[data-year]").forEach(
     (b) =>
@@ -265,7 +268,7 @@ function updateChapters() {
     document.querySelector(".chapter-note p").textContent = "10분 겨울곰 · 20분 검은 뱀 · 30분 심장";
     document.querySelector(".title-description").textContent = "30분 너머, 쓰러질 때까지. 성장은 계속 이어집니다.";
   } else document.querySelector(".chapter-note p").textContent = "봄 · 여름 · 가을 · 겨울";
-  $("start").innerHTML = `${selectedMode === "hell" ? "헬 모드 도전" : "숲으로 들어가기"} <span>↗</span>`;
+  $("start").innerHTML = `${selectedMode === "hell" ? "헬 모드 도전" : "숲으로 들어가기"} <span aria-hidden="true">→</span>`;
 }
 function updateRecord() {
   const rec = store.read(selectedMode === "hell" ? "hellRecord" : recordKey(selectedYear, quick));
@@ -354,12 +357,12 @@ function showUpgrades() {
             ? d.desc
             : d.up[c.level - 1]
           : d.desc;
-      return `<button class="upgrade-card" data-choice="${i}" style="--weapon-color:${d.color || "#d7cc9d"}"><span class="shortcut">${i + 1}</span><span class="category">${c.kind === "weapon" ? (c.level === 1 ? "새 무기" : d.tag) : c.kind === "passive" ? "패시브 강화" : "회복"}</span><span class="upgrade-icon" aria-hidden="true">${d.glyph}</span><h3>${d.name}</h3><p class="desc">${desc}</p><span class="upgrade-bottom"><span>LV. ${c.level} / ${d.max}</span><span>선택 ↗</span></span></button>`;
+      return `<button class="upgrade-card" data-choice="${i}" style="--weapon-color:${d.color || "#d7cc9d"}"><span class="shortcut">${i + 1}</span><span class="category">${c.kind === "weapon" ? (c.level === 1 ? "새 무기" : d.tag) : c.kind === "passive" ? "패시브 강화" : "회복"}</span><span class="upgrade-icon" aria-hidden="true">${itemIcon(c.kind === "heal" ? "heal" : c.id)}</span><h3>${d.name}</h3><p class="desc">${desc}</p><span class="upgrade-bottom"><span>LV. ${c.level} / ${d.max}</span></span></button>`;
     })
     .join("");
   showModal(
     "levelup",
-    `<span class="eyebrow">A LITTLE STRONGER</span><h2 id="modal-title">한 뼘 더 자랐어요.</h2><p class="sub">레벨 ${game.level} · 이번 계절을 함께할 힘을 고르세요.</p><div class="upgrade-grid">${cards}</div><p class="sub" style="margin-top:20px">숫자 1 · 2 · 3 또는 클릭으로 선택</p>`,
+    `<span class="eyebrow">새로운 성장</span><h2 id="modal-title">이번에는 어떤 힘을?</h2><p class="sub">레벨 ${game.level} · 무기와 능력 중 하나를 선택하세요.</p><div class="upgrade-grid">${cards}</div><p class="sub upgrade-hint">숫자 1 · 2 · 3 또는 클릭으로 선택</p>`,
   );
   $("modal-content")
     .querySelectorAll("[data-choice]")
@@ -368,7 +371,7 @@ function showUpgrades() {
 function showPause() {
   showModal(
     "pause",
-    `<span class="eyebrow">A MOMENT IN THE WOODS</span><h2 id="modal-title">잠깐, 숨 고르기</h2><p class="sub">${game.mode === "hell" ? "헬 모드" : `${game.year}년차`} · ${SEASONS[game.season].name} · ${format(game.time)}<br>이동과 자동 공격만으로 숲을 살아남으세요.</p><div class="modal-actions"><button class="primary" id="resume">계속하기</button><button id="quit">시작 화면으로</button></div><p class="sub">${game.mode === "hell" ? "헬 모드는 중간 저장이 없습니다. 시작 화면으로 나가면 이번 도전이 끝납니다." : game.quick ? "빠른 체험은 중간 저장하지 않습니다." : "마지막 계절 시작 지점이 저장되어 있습니다."}</p>`,
+    `<span class="eyebrow">일시정지</span><h2 id="modal-title">잠깐, 숨 고르기</h2><p class="sub">${game.mode === "hell" ? "헬 모드" : `${game.year}년차`} · ${SEASONS[game.season].name} · ${format(game.time)}<br>이동과 자동 공격만으로 숲을 살아남으세요.</p><div class="modal-actions"><button class="primary" id="resume">계속하기</button><button id="quit">시작 화면으로</button></div><p class="sub">${game.mode === "hell" ? "헬 모드는 중간 저장이 없습니다. 시작 화면으로 나가면 이번 도전이 끝납니다." : game.quick ? "빠른 체험은 중간 저장하지 않습니다." : "마지막 계절 시작 지점이 저장되어 있습니다."}</p>`,
   );
   $("resume").onclick = () => {
     closeModal();
@@ -381,7 +384,7 @@ function showResult(won) {
   const label = game.mode === "hell" ? "겨울은 당신의 기록을 기억합니다." : won ? "한 해를 살아냈어요." : "숲은 다시 기다릴 거예요.";
   showModal(
     "result",
-    `<span class="eyebrow">${game.mode === "hell" ? "HELL MODE · LAST STAND" : won ? `YEAR ${game.year} · SURVIVED` : "ONE MORE SPRING"}</span><h2 id="modal-title">${label}</h2><p class="sub">${game.mode === "hell" ? `헬 모드 · 보스 ${game.hellBossKills.length}회 격파` : `${game.year}년차 · ${chapter(game.year).name}${game.quick ? " · 빠른 체험" : ""}`}${won ? " 완료" : ` · ${SEASONS[game.season].name}에서의 발자국`}</p><div class="result-stats"><div><small>생존 시간</small><b>${format(game.time)}</b></div><div><small>처치</small><b>${game.kills}</b></div><div><small>레벨</small><b>${game.level}</b></div></div>${resultDetails(game.report())}<div class="modal-actions"><button id="again" class="primary">다시 도전하기</button><button id="home">시작 화면으로</button>${won && game.year < 3 ? '<button id="next-year" class="primary">다음 연차 시작 →</button>' : ""}</div>${won && game.year === 3 ? '<p class="sub">부모님과의 재회, 그리고 마법사의 첫걸음.<br>다음 작품 구상: 호그와트에서 시작되는 마법 디펜스.</p>' : ""}`,
+    `<span class="eyebrow">${game.mode === "hell" ? "헬 모드 · 도전 기록" : won ? `${game.year}년차 · 생존 기록` : "이번 모험의 기록"}</span><h2 id="modal-title">${label}</h2><p class="sub">${game.mode === "hell" ? `헬 모드 · 보스 ${game.hellBossKills.length}회 격파` : `${game.year}년차 · ${chapter(game.year).name}${game.quick ? " · 빠른 체험" : ""}`}${won ? " 완료" : ` · ${SEASONS[game.season].name}에서의 발자국`}</p><div class="result-stats"><div><small>생존 시간</small><b>${format(game.time)}</b></div><div><small>처치</small><b>${game.kills}</b></div><div><small>레벨</small><b>${game.level}</b></div></div>${resultDetails(game.report())}<div class="modal-actions"><button id="again" class="primary">다시 도전하기</button><button id="home">시작 화면으로</button>${won && game.year < 3 ? '<button id="next-year" class="primary">다음 연차 시작 →</button>' : ""}</div>${won && game.year === 3 ? '<p class="sub">부모님과의 재회, 그리고 마법사의 첫걸음.<br>다음 작품 구상: 호그와트에서 시작되는 마법 디펜스.</p>' : ""}`,
   );
   $("again").onclick = () => {
     begin();
@@ -462,10 +465,11 @@ function renderEnding() {
   };
   $("next-story").onclick = advanceStory;
   $("skip-story").onclick = finishStory;
+  updateSoundControl($("story-sound"), sound);
   $("story-sound").onclick = () => {
     $("sound").click();
     if (sound) storyMusic.unlock();
-    $("story-sound").textContent = sound ? '음악 끄기' : '음악 켜기';
+    updateSoundControl($("story-sound"), sound);
   };
 }
 function showHelp() {
@@ -475,7 +479,7 @@ function showHelp() {
   if (game.state === "levelup") return;
   showModal(
     "help",
-    `<span class="eyebrow">HOW TO SURVIVE</span><h2 id="modal-title">작은 발걸음, 큰 선택</h2><div class="help-list"><p><span>이동</span><span><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / 방향키</span></p><p><span>공격</span><span>가까운 적을 향해 자동 공격</span></p><p><span>성장</span><span>작은 빛을 모아 레벨업</span></p><p><span>특별 도토리</span><span>회복 · 자석 · 공격 강화</span></p><p><span>장착 무기</span><span>13종 중 최대 6칸</span></p><p><span>일시정지</span><span><kbd>ESC</kbd></span></p></div><p class="sub">사계절을 버틴 뒤 각 연차의 보스를 쓰러뜨리세요.<br>이야기는 한 해를 마친 뒤에 이어집니다.</p><div class="modal-actions"><button class="primary" id="close-help">알겠어요</button></div>`,
+    `<span class="eyebrow">조작법</span><h2 id="modal-title">숲에서 살아남기</h2><div class="help-list"><p><span>이동</span><span><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / 방향키</span></p><p><span>공격</span><span>가까운 적을 향해 자동 공격</span></p><p><span>성장</span><span>작은 빛을 모아 레벨업</span></p><p><span>특별 도토리</span><span>회복 · 자석 · 공격 강화</span></p><p><span>장착 무기</span><span>14종 중 최대 6칸</span></p><p><span>일시정지</span><span><kbd>ESC</kbd></span></p></div><p class="sub">사계절을 버틴 뒤 각 연차의 보스를 쓰러뜨리세요.<br>이야기는 한 해를 마친 뒤에 이어집니다.</p><div class="modal-actions"><button class="primary" id="close-help">알겠어요</button></div>`,
   );
   $("close-help").onclick = () => {
     closeModal();
@@ -535,13 +539,13 @@ function updateHud() {
     $("weapon-slots").innerHTML = Array.from({ length: 6 }, (_, i) => {
       const w = game.weapons[i];
       return w
-        ? `<div class="weapon-slot" title="${BY_ID[w.id].name} · 레벨 ${w.level}/${BY_ID[w.id].max}" style="--weapon-color:${BY_ID[w.id].color}"><span class="glyph">${BY_ID[w.id].glyph}</span><small>${w.level === BY_ID[w.id].max ? "MAX" : "LV." + w.level}</small></div>`
+        ? `<div class="weapon-slot" role="img" aria-label="${BY_ID[w.id].name} 레벨 ${w.level}" title="${BY_ID[w.id].name} · 레벨 ${w.level}/${BY_ID[w.id].max}" style="--weapon-color:${BY_ID[w.id].color}">${itemIcon(w.id)}<small>${w.level === BY_ID[w.id].max ? "MAX" : "LV." + w.level}</small></div>`
         : `<div class="weapon-slot empty" aria-label="빈 무기 슬롯 ${i + 1}"><span>${i + 1}</span></div>`;
     }).join("");
     $("passive-slots").innerHTML = Object.entries(game.passives)
       .map(([id, lv]) => {
         const p = PASSIVES.find((x) => x.id === id);
-        return `<span title="${p.name} · 레벨 ${lv}">${p.glyph}<small>${lv}</small></span>`;
+        return `<span role="img" aria-label="${p.name} 레벨 ${lv}" title="${p.name} · 레벨 ${lv}">${itemIcon(id)}<small>${lv}</small></span>`;
       })
       .join("");
   }
@@ -559,9 +563,7 @@ $("sound").onclick = () => {
   tone(550, 0.12);
 };
 function updateSound() {
-  $("sound").textContent = sound ? "소리 켜짐" : "소리 꺼짐";
-  $("sound").setAttribute("aria-pressed", String(sound));
-  $("sound").setAttribute("aria-label", sound ? "소리 끄기" : "소리 켜기");
+  updateSoundControl($("sound"), sound);
 }
 updateSound();
 $("normal-mode").onclick = () => setMode("story");

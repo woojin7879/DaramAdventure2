@@ -1,3 +1,4 @@
+import { updateSoundControl } from "./sound-control.js";
 import { StoryPlayback } from './cinematic.js';
 import { INTRO_DURATION, drawIntro } from './intro-scene.js';
 import { IntroAudio } from './intro-audio.js';
@@ -54,12 +55,13 @@ export function playIntro({ onFinish = () => {} } = {}) {
   };
   layer.querySelector('.intro-skip').onclick=finish;
   const soundButton=layer.querySelector('.intro-sound');
+  updateSoundControl(soundButton, false);
   soundButton.onclick=async()=> {
     try {
       if(audio.enabled)audio.mute();else await audio.enable();
       if(ended){audio.close();return;}
-      soundButton.textContent=audio.enabled?'소리 끄기':'소리 켜기';soundButton.setAttribute('aria-pressed',String(audio.enabled));
-    } catch {soundButton.textContent='소리 사용 불가';soundButton.disabled=true;}
+      updateSoundControl(soundButton, audio.enabled);
+    } catch {updateSoundControl(soundButton, false, true);}
   };
   layer.querySelector('.intro-skip').focus({preventScroll:true});
   window.addEventListener('keydown',keydown,true);document.addEventListener('visibilitychange',visibility);
