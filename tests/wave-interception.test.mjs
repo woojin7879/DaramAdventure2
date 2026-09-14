@@ -32,10 +32,10 @@ function fly(angle,reverse=false) {
   }
   return contact;
 }
-test('year-one bats intercept straight travel in every direction, with a way to evade',()=>{
+test('year-one bats intercept straight travel and turning back in every direction',()=>{
   for(let i=0;i<8;i++) {
     const a=i*Math.PI/4;
     assert.equal(fly(a),true,`straight ${i}`);
-    assert.equal(fly(a,true),false,`reverse ${i}`);
+    assert.equal(fly(a,true),true,`reverse ${i}`);
   }
 });

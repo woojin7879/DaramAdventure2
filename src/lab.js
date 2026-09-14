@@ -5,7 +5,7 @@ import { chapter } from "./chapters.js";
 import { bodyCenter } from "./geometry.js";
 import { Game } from "./game.js";
 import { Renderer } from "./render.js";
-import { BY_ID, WEAPONS, PASSIVES } from "./data.js";
+import { BY_ID, WEAPONS, PASSIVES, baseOf } from "./data.js";
 prepareItemIcons().catch(error => console.warn(error.message));
 const $ = (id) => document.getElementById(id);
 const bossTrial = document.body.dataset.bossTrial === "true";
@@ -31,8 +31,8 @@ function clearEffects() {
     w.timer = 0;
     w.travel = 0;
     w.charge = 0;
-    w.shields = w.id === "charm" ? game.stats(w).count : 0;
-    if (w.id === "charm")
+    w.shields = baseOf(w.id) === "charm" ? game.stats(w).count : 0;
+    if (baseOf(w.id) === "charm")
       game.effect("shieldReady", bodyCenter(game.player), {
         life: 0.7,
         color: "#d6f2b0",
@@ -83,16 +83,19 @@ function spawnTargets() {
   );
 }
 function updateControls() {
-  const own = game.weapons.find((w) => w.id === selected);
-  $("lab-level").disabled = !own;
+  const own = game.weaponOf(selected), evolved = own && BY_ID[own.id].evolved;
+  $("lab-level").disabled = !own || evolved;
   $("lab-level").max = BY_ID[selected].max;
-  $("lab-level").value = own?.level || 1;
-  $("lab-level-value").textContent = own
-    ? `${own.level} / ${BY_ID[selected].max}`
-    : "미장착";
-  $("lab-description").textContent =
-    BY_ID[selected].desc +
-    (own?.level > 1 ? " " + BY_ID[selected].up[own.level - 1] : "");
+  $("lab-level").value = evolved ? BY_ID[selected].max : own?.level || 1;
+  $("lab-level-value").textContent = evolved
+    ? `진화 · ${BY_ID[own.id].name}`
+    : own
+      ? `${own.level} / ${BY_ID[selected].max}`
+      : "미장착";
+  $("lab-description").textContent = evolved
+    ? BY_ID[own.id].desc
+    : BY_ID[selected].desc +
+      (own?.level > 1 ? " " + BY_ID[selected].up[own.level - 1] : "");
   for (const button of $("lab-weapons").children)
     button.setAttribute(
       "aria-pressed",
@@ -102,7 +105,7 @@ function updateControls() {
     game.weapons
       .map(
         (w) =>
-          `<button data-remove="${w.id}" title="클릭하면 제거">${itemIcon(w.id)}${BY_ID[w.id].name} Lv.${w.level} ×</button>`,
+          `<button data-remove="${w.id}" title="클릭하면 제거">${itemIcon(w.id)}${BY_ID[w.id].name} ${BY_ID[w.id].evolved ? "진화" : `Lv.${w.level}`} ×</button>`,
       )
       .join("") || "<p>무기를 선택하세요.</p>";
   for (const b of $("lab-equipped").children)
@@ -117,7 +120,7 @@ function updateControls() {
 function equip(id) {
   if (
     $("lab-stack").checked &&
-    !game.weapons.some((w) => w.id === id) &&
+    !game.weaponOf(id) &&
     game.weapons.length >= 6
   ) {
     status("6칸이 가득 찼습니다. 장착 목록에서 무기를 제거하세요.");
@@ -125,8 +128,8 @@ function equip(id) {
   }
   selected = id;
   if (!$("lab-stack").checked)
-    game.weapons = game.weapons.filter((w) => w.id === id);
-  if (!game.weapons.some((w) => w.id === id)) game.addWeapon(id);
+    game.weapons = game.weapons.filter((w) => baseOf(w.id) === id);
+  if (!game.weaponOf(id)) game.addWeapon(id);
   clearEffects();
   resetMeasurement();
   updateControls();
@@ -199,8 +202,8 @@ for (const input of $("lab-passives").querySelectorAll("input"))
     resetMeasurement();
   };
 $("lab-level").oninput = () => {
-  const w = game.weapons.find((w) => w.id === selected);
-  if (w) {
+  const w = game.weaponOf(selected);
+  if (w && !BY_ID[w.id].evolved) {
     w.level = Number($("lab-level").value);
     clearEffects();
     resetMeasurement();
@@ -228,6 +231,26 @@ $("lab-max").onclick = () => {
   clearEffects();
   resetMeasurement();
   updateControls();
+};
+// Evolves every equipped base weapon: maxes it and grants the paired passive if missing.
+$("lab-evolve").onclick = () => {
+  const names = [];
+  for (const w of game.weapons) {
+    const def = BY_ID[w.id];
+    if (def.evolved) continue;
+    w.level = def.max;
+    const requires = BY_ID[def.evolution].requires;
+    if (!(game.passives[requires] >= 1)) {
+      game.passives[requires] = 1;
+      const input = $("lab-passives").querySelector(`[data-passive="${requires}"]`);
+      if (input) { input.value = 1; input.previousElementSibling.textContent = "1"; }
+    }
+    if (game.evolve(def.id)) names.push(BY_ID[w.id].name);
+  }
+  clearEffects();
+  resetMeasurement();
+  updateControls();
+  status(names.length ? `진화 적용 · ${names.join(", ")}` : "진화할 무기가 없습니다. 무기를 먼저 장착하세요.");
 };
 $("lab-clear").onclick = () => {
   game.weapons = [];

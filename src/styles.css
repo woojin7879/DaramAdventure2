@@ -1275,6 +1275,17 @@ kbd {
   gap: 12px;
   flex-wrap: wrap;
 }
+.new-record {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #d9762b;
+  color: #fff7ea;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
 .run-details h3 small,
 .stat-note {
   font-size: 13px;

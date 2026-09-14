@@ -411,7 +411,38 @@ export const WEAPONS = [
     up: ["", "피해 10 → 14", "씨앗 3 → 4개", "확산 거리 200 → 240", "공격 간격 3.6 → 3초", "씨앗 4 → 5개", "피해 14 → 20", "씨앗 6개 · 회전 방향 교대 · 감속 25%"],
   },
 ];
-export const BY_ID = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
+// Evolutions replace a maxed weapon in its slot when the paired passive is owned.
+// They are granted only from treasure chests, never from level-up cards.
+// Stats start from the base weapon's final level plus the flag read by the effect.
+const evolution = (base, requires, def, extra = {}) => ({
+  ...def,
+  base,
+  requires,
+  max: 1,
+  evolved: true,
+  stats: [{ ...WEAPONS.find((w) => w.id === base).stats.at(-1), ...extra }],
+  up: [""],
+});
+export const EVOLUTIONS = [
+  evolution("acorn", "might", { id: "harvest", name: "풍년의 새총", glyph: "↗", color: "#f2c96a", tag: "진화 · 분열 탄환", desc: "관통을 마친 도토리가 작은 도토리 3개로 갈라집니다." }),
+  evolution("tail", "area", { id: "stormtail", name: "폭풍 꼬리", glyph: "〰", color: "#f2c96a", tag: "진화 · 바람 파동", desc: "휩쓸기 뒤에 바깥으로 퍼지는 바람 파동이 적을 밀어냅니다." }),
+  evolution("stone", "health", { id: "mountain", name: "산의 수호", glyph: "◌", color: "#f2c96a", tag: "진화 · 충격파", desc: "3초마다 궤도 사이에서 충격파가 터집니다." }),
+  evolution("vine", "area", { id: "oldhand", name: "고목의 손길", glyph: "⌁", color: "#f2c96a", tag: "진화 · 뿌리 확산", desc: "채찍 끝에서 뿌리가 옆으로 퍼져 적을 붙잡습니다." }),
+  evolution("fire", "might", { id: "embergrove", name: "잿불 숲", glyph: "♨", color: "#f2c96a", tag: "진화 · 잔불", desc: "불길이 꺼진 자리에 작은 잔불이 남습니다." }, { ember: true }),
+  evolution("lightning", "haste", { id: "thunder", name: "뇌우의 가지", glyph: "ϟ", color: "#f2c96a", tag: "진화 · 지연 낙뢰", desc: "연쇄가 끝난 자리에 잠시 뒤 큰 낙뢰가 떨어집니다." }),
+  evolution("ice", "speed", { id: "hibernation", name: "겨울잠의 결계", glyph: "❄", color: "#f2c96a", tag: "진화 · 감속 지대", desc: "마지막 고리가 지나간 뒤 잠시 서리 지대가 남습니다." }),
+  evolution("bounce", "haste", { id: "goldbounce", name: "황금 도토리 당구", glyph: "⤨", color: "#f2c96a", tag: "진화 · 파편", desc: "마지막 폭발에서 황금 파편 4개가 튀어나갑니다." }),
+  evolution("charm", "health", { id: "blessing", name: "고목의 가호", glyph: "◇", color: "#f2c96a", tag: "진화 · 피해 감소", desc: "보호가 모두 소진되면 5초 동안 받는 피해가 30% 줄어듭니다." }),
+  evolution("spore", "speed", { id: "breath", name: "숲의 숨결", glyph: "♧", color: "#f2c96a", tag: "진화 · 포자 폭발", desc: "구름이 사라질 때 작은 포자 폭발이 일어납니다." }, { burst: true }),
+  evolution("bee", "haste", { id: "queenbee", name: "여왕벌의 행진", glyph: "✤", color: "#f2c96a", tag: "진화 · 꿀 흔적", desc: "돌아오는 벌이 적을 늦추는 꿀 흔적을 남깁니다." }),
+  evolution("turret", "magnet", { id: "storehouse", name: "풍년 창고", glyph: "⌂", color: "#f2c96a", tag: "진화 · 강화 탄환", desc: "비축고의 3발마다 강화 탄환이 작은 범위 피해를 줍니다." }),
+  evolution("boomerang", "speed", { id: "windboomerang", name: "숲바람 부메랑", glyph: "‹", color: "#f2c96a", tag: "진화 · 잎날", desc: "돌아온 부메랑이 날아온 방향으로 관통 잎날 3개를 날립니다." }),
+  evolution("seed", "magnet", { id: "bloomseed", name: "만개한 씨앗", glyph: "✣", color: "#f2c96a", tag: "진화 · 분열 씨앗", desc: "씨앗이 흩어질 때 작은 씨앗 3개로 다시 퍼집니다." }),
+];
+for (const e of EVOLUTIONS) WEAPONS.find((w) => w.id === e.base).evolution = e.id;
+export const BY_ID = Object.fromEntries([...WEAPONS, ...EVOLUTIONS].map((w) => [w.id, w]));
+// The behaviour family a weapon entry belongs to (an evolution shares its base's logic).
+export const baseOf = (id) => BY_ID[id]?.base || id;
 export const PASSIVES = [
   {
     id: "might",
@@ -458,8 +489,10 @@ export const ENEMIES = {
   boar: { hp: 110, speed: 36, damage: 18, r: 20, sprite: 10, xp: 8 },
   boss: { hp: 4800, speed: 35, damage: 24, r: 38, sprite: 11, xp: 0 },
 };
+// Base curve, then a level-scaled surcharge (+8% at L10, +24% at L30, capped +30%)
+// that absorbs part of the extra levels treasure chests add without slowing the opening.
 export const xpRequired = (level) =>
-  Math.round(7 + level * 3 + Math.pow(level, 1.34) * 1.4);
+  Math.round((7 + level * 3 + Math.pow(level, 1.34) * 1.4) * (1 + Math.min(0.3, level * 0.008)));
 export const ending = [
   ['꿈 밖의 흔적', '곰은 서리가 남긴 그림자였나 봐. 사라지니 물길이 보이네.\n얼음 밑에 있던 이 매듭…… 엄마가 묶던 모양이야.'],
   ['익숙한 매듭', '영영 안 돌아오실 것만 같았는데…… 흔적이 여기 있었어.\n꿈속 목소리가 이 물길을 따라가라고 했던 걸까?'],

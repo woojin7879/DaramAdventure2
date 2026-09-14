@@ -18,12 +18,10 @@ export function planWave(g, kind) {
   const playerSpeed = 135 * (1 + (g.passives.speed || 0) * 0.08);
   const flightTime = 0.9;
   const flightSpeed = 280 + g.season * 15;
-  // Predict once, then freeze the warning: continuing straight is intercepted,
-  // but changing course remains a valid response. No homing after announcement.
-  const center = kind === 'bats' ? {
-    x:clamp(g.player.x + move.x*playerSpeed*(delay+flightTime),35,WORLD-35),
-    y:clamp(g.player.y + move.y*playerSpeed*(delay+flightTime),35,WORLD-35),
-  } : {x:g.player.x,y:g.player.y};
+  // Bat rows are anchored on the player and long enough to cover both continuing
+  // straight and turning back; the answer is to thin the row, not to outrun it.
+  const reach = playerSpeed*(delay+flightTime);
+  const center = {x:g.player.x,y:g.player.y};
   let rotation = kind === 'bats' && (move.x || move.y)
     ? Math.atan2(move.y,move.x)+Math.PI/2 : g.random()*Math.PI*2;
   if (kind !== "bats" && Math.min(g.player.x,g.player.y,WORLD-g.player.x,WORLD-g.player.y)<400)
@@ -35,8 +33,11 @@ export function planWave(g, kind) {
     const directions=[0,Math.PI,Math.PI/2,Math.PI*1.5];
     for (let lane=0; lane<lanes; lane++) {
       const a=rotation+directions[lane];
-      // Odd count guarantees a bat directly on the predicted crossing point.
-      const count=15+2*Math.floor(g.season/2);
+      // Odd count guarantees a bat directly on the player's line. Crossing rows
+      // (lanes 0·1) span the distance the player can cover forward or backward
+      // before the row arrives; head-on/chasing rows keep their width.
+      const half=lane<2 ? Math.min(16,Math.ceil((reach+60)/30)) : 7+Math.floor(g.season/2);
+      const count=half*2+1;
       for(let i=0;i<count;i++) {
         const offset=(i-(count-1)/2)*30;
         const x=center.x+Math.cos(a)*flightSpeed*flightTime-Math.sin(a)*offset;

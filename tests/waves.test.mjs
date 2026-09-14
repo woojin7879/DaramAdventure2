@@ -3,13 +3,17 @@ import assert from 'node:assert/strict';
 import { Game } from '../src/game.js';
 import { planWave, updateWaves } from '../src/waves.js';
 const fresh=()=>{const g=new Game({random:()=>0.4});g.start();return g;};
-test('year-one bat rows span 420 to 480 units while retaining their central interceptor',()=>{
-  for(const season of [1,3]) {
-    const g=fresh();g.season=season;
-    const points=planWave(g,'bats').points;
+test('crossing bat rows cover forward and backward travel around the player',()=>{
+  for(const speed of [0,5]) {
+    const g=fresh();g.season=1;g.passives.speed=speed;
+    const wave=planWave(g,'bats');const points=wave.points;
+    assert.deepEqual(wave.center,{x:g.player.x,y:g.player.y});
     const row=points.filter(p=>p.heading===points[0].heading);
-    assert.equal(row.length,season===1?15:17);
-    assert.equal(Math.max(...row.map(p=>p.laneOffset))-Math.min(...row.map(p=>p.laneOffset)),season===1?420:480);
+    const reach=135*(1+speed*0.08)*(wave.delay+0.9);
+    const span=Math.max(...row.map(p=>p.laneOffset))-Math.min(...row.map(p=>p.laneOffset));
+    assert.equal(row.length%2,1);
+    assert.ok(span/2>=Math.min(480,reach+30),`speed ${speed}`);
+    assert.ok(row.length<=33);
     assert.ok(row.some(p=>p.laneOffset===0));
   }
 });

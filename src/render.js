@@ -7,7 +7,27 @@ import { bossSpriteFrame, bossFrameRect } from "./boss-animation.js";
 import { drawBossLife, drawBossHazard } from "./boss-art.js";
 import { chapter, riverX, riverCrossing } from "./chapters.js";
 import { bodyCenter, stoneOrbit, fireRotation } from "./geometry.js";
-import { WORLD, SEASONS, BY_ID } from "./data.js";
+import { WORLD, SEASONS, BY_ID, baseOf } from "./data.js";
+
+// chest.png: two frames (closed, open) on a black matte. The artwork is not centred in
+// its frame, so measure each frame's opaque bounding box once and draw from that.
+function chestAtlas(image) {
+  const canvas = opaqueBossAtlas(image, 2, 1);
+  const c = canvas.getContext("2d", { willReadFrequently: true });
+  const frame = canvas.width / 2;
+  canvas.frames = [0, 1].map((i) => {
+    const { data } = c.getImageData(i * frame, 0, frame, canvas.height);
+    let x0 = frame, y0 = canvas.height, x1 = 0, y1 = 0;
+    for (let y = 0; y < canvas.height; y++)
+      for (let x = 0; x < frame; x++)
+        if (data[(y * frame + x) * 4 + 3] > 40) {
+          if (x < x0) x0 = x; if (x > x1) x1 = x;
+          if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+    return x1 > x0 ? { x: i * frame + x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 } : { x: i * frame, y: 0, w: frame, h: canvas.height };
+  });
+  return canvas;
+}
 const rng = (seed) => () => {
   seed = (seed * 1664525 + 1013904223) >>> 0;
   return seed / 4294967296;
@@ -73,13 +93,15 @@ export class Renderer {
         "bear-vfx",
         "river-ground",
         "roots-ground",
+        "chest",
       ].map(
         (name) =>
           new Promise((resolve, reject) => {
             const im = new Image();
             im.onload = () => {
               if(name === "bear-vfx") im.vfxInset = 6;
-              this.images[name] = name.endsWith("-animation") ? opaqueBossAtlas(im) : im;
+              this.images[name] = name.endsWith("-animation") ? opaqueBossAtlas(im)
+                : name === "chest" ? chestAtlas(im) : im;
               resolve();
             };
             im.onerror = () =>
@@ -132,6 +154,29 @@ export class Renderer {
     c.arc(x, y, r, 0, Math.PI * 2);
     c.fill();
     c.globalAlpha = 1;
+  }
+  // Treasure chest drop: closed frame from chest.png (2 × 1) with a soft glow and bob.
+  drawChest(x, y, t) {
+    const c = this.ctx, im = this.images.chest;
+    const bob = this.reduced ? 0 : Math.sin(t * 2.4 + x) * 2;
+    // The chest body sits so its visual centre is at (x, y - 10); the glow shares that centre.
+    const size = 58, centerY = y - 10 + bob;
+    this.shadow(x, y + 6, 18);
+    this.circle(x, centerY, 30 + Math.sin(t * 3) * 3, "#f2c96a", 0.12);
+    if (im?.frames) {
+      const box = im.frames[0], scale = size / Math.max(box.w, box.h), w = box.w * scale, h = box.h * scale;
+      c.save();
+      c.imageSmoothingEnabled = true;
+      c.drawImage(im, box.x, box.y, box.w, box.h, x - w / 2, centerY - h / 2, w, h);
+      c.restore();
+    } else this.circle(x, centerY, 14, "#c98a3a");
+    c.font = "600 10px sans-serif";
+    c.textAlign = "center";
+    const label = "보물상자", width = c.measureText(label).width + 10;
+    c.fillStyle = "#13231ed9";
+    c.fillRect(x - width / 2, y + 15, width, 16);
+    c.fillStyle = "#f2c96a";
+    c.fillText(label, x, y + 26);
   }
   effectSprite(index, x, y, size, rotation = 0, alpha = 1) {
     const c = this.ctx,
@@ -371,15 +416,17 @@ export class Renderer {
     c.setLineDash([10, 10]);
     c.strokeRect(20, 20, WORLD - 40, WORLD - 40);
     c.setLineDash([]);
+    const zoneFill = { fire: "#d16b30", spore: "#aa79ba", frost: "#8fd3ea", honey: "#e2b146" };
+    const zoneLine = { fire: "#dfa15a", spore: "#cca8d8", frost: "#d6f2fb", honey: "#f5d98a" };
     for (const z of g.zones) {
       this.circle(
         z.x,
         z.y,
         z.r,
-        z.type === "fire" ? "#d16b30" : "#aa79ba",
+        zoneFill[z.type] || "#aa79ba",
         0.15 + Math.min(1, z.life) * 0.08,
       );
-      c.strokeStyle = z.type === "fire" ? "#dfa15a" : "#cca8d8";
+      c.strokeStyle = zoneLine[z.type] || "#cca8d8";
       c.globalAlpha = 0.32;
       c.lineWidth = 1.5;
       c.beginPath();
@@ -398,7 +445,7 @@ export class Renderer {
           z.x + Math.cos(a) * z.r * 0.5,
           z.y + Math.sin(a) * z.r * 0.5 - Math.sin(t * 2 + j) * 4,
           2,
-          z.type === "fire" ? "#f5c978" : "#e1c4e9",
+          { fire: "#f5c978", frost: "#ffffff", honey: "#fff0b8" }[z.type] || "#e1c4e9",
           0.7,
         );
       }
@@ -408,6 +455,8 @@ export class Renderer {
         const r = d.value >= 20 ? 4.2 : d.value >= 6 ? 3 : 2;
         this.circle(d.x, d.y, r + 1.3, "#173d39", 0.95);
         this.circle(d.x, d.y, r, d.value >= 20 ? "#c0eddd" : "#9ddeb3");
+      } else if (d.type === "chest") {
+        this.drawChest(d.x, d.y, t);
       } else {
         const colors = { magnet: "#70d4e9", heal: "#b7e69b", power: "#f4bc65" };
         this.shadow(d.x, d.y + 3, 15);
@@ -498,7 +547,7 @@ export class Renderer {
       }
       if (o.kind === "player") {
         this.shadow(o.x, o.y, 22);
-        const shield = g.weapons.find((w) => w.id === "charm");
+        const shield = g.weapons.find((w) => baseOf(w.id) === "charm");
         let frame = 0;
         if (p.hp <= 0) frame = 5;
         else if (p.invuln > 0.2 && p.invuln < 0.85) frame = 3;
@@ -529,7 +578,7 @@ export class Renderer {
           c.arc(o.x, o.y - 10, 30, 0, Math.PI * 2);
           c.stroke();
         }
-        const charm = g.weapons.find((w) => w.id === "charm");
+        const charm = g.weapons.find((w) => baseOf(w.id) === "charm");
         if (charm) {
           const center = bodyCenter(p),
             stats = g.stats(charm);
@@ -669,7 +718,7 @@ export class Renderer {
         c.restore();
       }
     }
-    const stone = g.weapons.find((w) => w.id === "stone");
+    const stone = g.weapons.find((w) => baseOf(w.id) === "stone");
     if (stone) {
       const s = g.stats(stone);
       for (let i = 0; i < s.count; i++) {
@@ -758,9 +807,24 @@ export class Renderer {
         c.arc(0, 0, 12, -0.6, 1.6);
         c.stroke();
         c.restore();
+      } else if (b.type === "leaf") {
+        // 숲바람 부메랑 leaf blade: a thin green sliver aligned with its flight.
+        c.save();
+        c.translate(b.x, b.y);
+        c.rotate(Math.atan2(b.vy, b.vx));
+        c.fillStyle = "#bfe08a";
+        c.globalAlpha = 0.9;
+        c.beginPath();
+        c.ellipse(0, 0, 11, 3.5, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      } else if (b.split) {
+        this.circle(b.x, b.y, b.r + 1, "#f2c96a", 0.9);
+        this.circle(b.x - 1, b.y - 1, 1.5, "#fff4cc");
       } else {
         this.sprite(18, b.x, b.y + 7, turret ? 23 : 19);
         if (turret) this.circle(b.x - 2, b.y - 2, 2, "#deffbb", 0.9);
+        if (b.s?.splash) this.circle(b.x, b.y, 9, "#f2c96a", 0.35);
       }
     }
     for (const shot of g.enemyShots) {
@@ -843,6 +907,30 @@ export class Renderer {
         const opacity =
           Math.min(1, progress * 8) * Math.min(1, (1 - progress) * 5) * 0.82;
         this.effectSprite(0, h.x, h.y, r * 2.32, progress * 0.1, opacity);
+      }
+      if (h.type === "gust" && h.delay <= 0) {
+        const progress = Math.min(1, h.age / h.s.grow), r = h.s.range * progress;
+        c.save();
+        c.strokeStyle = h.s.color;
+        c.lineWidth = 6 * (1 - progress) + 2;
+        c.globalAlpha = 0.55 * (1 - progress * 0.6);
+        c.setLineDash([18, 10]);
+        c.lineDashOffset = -g.time * 90;
+        c.beginPath();
+        c.arc(h.x, h.y, r, 0, Math.PI * 2);
+        c.stroke();
+        c.restore();
+      }
+      if (h.type === "strike" && h.delay > 0) {
+        c.save();
+        c.strokeStyle = "#f4ea9c";
+        c.lineWidth = 2;
+        c.globalAlpha = 0.35 + (0.5 - h.delay) * 0.9;
+        c.setLineDash([6, 6]);
+        c.beginPath();
+        c.arc(h.x, h.y, h.r, 0, Math.PI * 2);
+        c.stroke();
+        c.restore();
       }
       if (h.type === "shock") {
         const r = h.age * 210;

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game } from '../src/game.js';
-import { hellUnlocked, hellBudget, hellDifficulty } from '../src/hell.js';
+import { hellUnlocked, hellBudget, hellDifficulty, hellEliteInterval } from '../src/hell.js';
 import { encounterBudget } from '../src/encounters.js';
 import { resultDetails } from '../src/results.js';
 
@@ -70,7 +70,18 @@ test('hell increases pressure, preserves opening mushroom grace, and scales over
   }
   assert.equal(hellBudget(30,0).mushroomCap,0);
   assert.ok(hellDifficulty(2400).health>hellDifficulty(1800).health);
-  assert.ok(hellBudget(7200,3).cap<=240);
+  // Overtime compounds: health roughly doubles every 10 minutes, so no build outscales it.
+  const h30=hellDifficulty(1800).health, h40=hellDifficulty(2400).health, h50=hellDifficulty(3000).health;
+  assert.ok(h40/h30>1.8 && h40/h30<2.2);
+  assert.ok(Math.abs(h50/h40-h40/h30)<.05);
+  assert.ok(hellDifficulty(3600).damage>hellDifficulty(1800).damage*2);
+  assert.ok(hellDifficulty(7200).speed<1.421);
+  assert.equal(hellBudget(1800,3).cap,240);
+  assert.equal(hellBudget(2400,3).cap,280);
+  assert.equal(hellBudget(7200,3).cap,320);
+  assert.equal(hellEliteInterval(1800),55);
+  assert.equal(hellEliteInterval(3000),25);
+  assert.equal(hellEliteInterval(7200),25);
 });
 test('simultaneous bosses retain their own pattern artwork',()=>{
   const {g}=setup();g.time=1200;

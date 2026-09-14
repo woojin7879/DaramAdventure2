@@ -1,7 +1,7 @@
 import { updateWaves } from "./waves.js";
 import { ringHits } from "./chapter-combat.js";
 import { yearDifficulty } from "./difficulty.js";
-import { hellDifficulty, hellBudget, hellBossYear, hellBossTime } from "./hell.js";
+import { hellDifficulty, hellBudget, hellBossYear, hellBossTime, hellEliteInterval } from "./hell.js";
 import { chapter, inWater } from "./chapters.js";
 import { updateChapterBoss, addPool, addRoot } from "./chapter-combat.js";
 import { bodyCenter, stoneOrbit, distanceToSegment } from "./geometry.js";
@@ -14,8 +14,12 @@ import {
   MAX_WEAPONS,
   WORLD,
   xpRequired,
+  baseOf,
 } from "./data.js";
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+// Elite (mini-boss) health multiplier on top of the time-scaled base, tuned per type so
+// a typical build needs 20–30 s: foxes have a small base and get the larger factor.
+const eliteHealth = (type, progress) => (type === "boar" ? 12 + 3 * progress : 34 + 10 * progress);
 // How far past the arena edge knockback may push an enemy. Kept well inside the
 // off-screen "absent" threshold so edge fights never lose enemies or kills.
 const EDGE_BAND = 120;
@@ -93,7 +97,9 @@ export class Game {
       invuln: 0,
       moving: false,
       power: 0,
+      guard: 0,
     };
+    this.chest = null;
     this.runStats = {
       weapons: {},
       history: [],
@@ -140,8 +146,9 @@ export class Game {
     this.onEvent("start");
   }
   stats(w) {
-    const b = BY_ID[w.id].stats[w.level - 1];
-    const s = { ...b };
+    const def = BY_ID[w.id], kind = baseOf(w.id);
+    const b = def.stats[w.level - 1];
+    const s = { ...b, evolved: Boolean(def.evolved) };
     const might =
         1 +
         (this.passives.might || 0) * 0.1 +
@@ -152,18 +159,23 @@ export class Game {
     for (const k of ["range", "radius", "width"])
       if (
         s[k] &&
-        ["tail", "stone", "vine", "fire", "ice", "spore", "boomerang", "seed"].includes(w.id)
+        ["tail", "stone", "vine", "fire", "ice", "spore", "boomerang", "seed"].includes(kind)
       )
         s[k] *= area;
     if (s.cooldown) s.cooldown *= haste;
-    if (w.id === "bee") s.cooldown = Math.max(0.7, s.cooldown);
-    if (w.id === "turret") s.cooldown = Math.max(0.45, s.cooldown);
+    if (kind === "bee") s.cooldown = Math.max(0.7, s.cooldown);
+    if (kind === "turret") s.cooldown = Math.max(0.45, s.cooldown);
     return s;
   }
+  // The equipped entry for a weapon family, whether base or evolved.
+  weaponOf(kind) {
+    return this.weapons.find((w) => baseOf(w.id) === kind);
+  }
   addWeapon(id) {
-    const existing = this.weapons.find((w) => w.id === id);
+    if (BY_ID[id]?.evolved) return false;
+    const existing = this.weaponOf(id);
     if (existing) {
-      if (existing.level >= BY_ID[id].max) return false;
+      if (existing.level >= BY_ID[existing.id].max) return false;
       const old = this.stats(existing);
       existing.level++;
       this.recordGrowth("weapon", id, existing.level);
@@ -187,6 +199,93 @@ export class Game {
         color: "#d6f2b0",
       });
     return true;
+  }
+  // An evolution is ready when the base weapon is maxed and the paired passive is owned.
+  evolutionReady(w) {
+    const def = BY_ID[w.id];
+    if (!def || def.evolved || !def.evolution || w.level < def.max) return false;
+    return (this.passives[BY_ID[def.evolution].requires] || 0) >= 1;
+  }
+  evolve(kind) {
+    const w = this.weaponOf(kind);
+    if (!w || !this.evolutionReady(w)) return null;
+    const evolved = BY_ID[w.id].evolution;
+    // The evolution keeps the base weapon's damage record under its new id.
+    this.runStats.weapons[evolved] = this.weaponRecord(w.id);
+    delete this.runStats.weapons[w.id];
+    w.id = evolved;
+    w.level = 1;
+    w.timer = Math.min(w.timer, 0.2);
+    this.recordGrowth("evolve", evolved, 1);
+    this.effect("ring", bodyCenter(this.player), { r: 90, color: "#f2c96a", life: 0.6, width: 3 });
+    return evolved;
+  }
+  gainPassive(id) {
+    const p = PASSIVES.find((x) => x.id === id);
+    if (!p || (this.passives[id] || 0) >= p.max) return false;
+    this.passives[id] = (this.passives[id] || 0) + 1;
+    this.recordGrowth("passive", id, this.passives[id]);
+    if (id === "health") {
+      this.player.maxHp += 20;
+      this.heal(20);
+    }
+    return true;
+  }
+  // Treasure chests apply their reward immediately: an evolution if one is ready,
+  // otherwise random growth, otherwise a consolation heal and special acorn effect.
+  openChest() {
+    const ready = this.weapons.filter((w) => this.evolutionReady(w));
+    let contents;
+    if (ready.length) {
+      const w = ready[Math.floor(this.random() * ready.length)];
+      const from = w.id;
+      // Candidates feed the roulette in the UI: every owned skill spins past before the evolution lands.
+      const candidates = [...this.weapons.map((x) => x.id), ...Object.keys(this.passives).filter((id) => this.passives[id] >= 1)];
+      contents = { kind: "evolve", from, id: this.evolve(from), candidates };
+    } else {
+      // Only skills the player already owns and has not maxed can be rolled.
+      const pool = [];
+      for (const w of this.weapons)
+        if (!BY_ID[w.id].evolved && w.level < BY_ID[w.id].max) pool.push({ kind: "weapon", id: w.id, level: w.level });
+      for (const p of PASSIVES) {
+        const level = this.passives[p.id] || 0;
+        if (level >= 1 && level < p.max) pool.push({ kind: "passive", id: p.id, level });
+      }
+      if (pool.length) {
+        // One random skill gains +1, +2 or +3 levels, capped at its max.
+        // Story: 80/17/3 (+1.23 expected). Hell: 65/25/10 (+1.45), since overtime
+        // outscales any build and half the elites drop nothing.
+        const pick = pool[Math.floor(this.random() * pool.length)];
+        const [three, two] = this.mode === "hell" ? [0.1, 0.35] : [0.03, 0.2];
+        const roll = this.random(), wanted = roll < three ? 3 : roll < two ? 2 : 1;
+        let gained = 0;
+        for (let i = 0; i < wanted; i++) {
+          const ok = pick.kind === "weapon" ? this.addWeapon(pick.id) : this.gainPassive(pick.id);
+          if (!ok) break;
+          gained++;
+        }
+        const level = pick.kind === "weapon" ? this.weaponOf(pick.id).level : this.passives[pick.id];
+        contents = { kind: "upgrade", item: { kind: pick.kind, id: pick.id, level, gained, wanted }, candidates: pool.map((c) => c.id) };
+      } else {
+        this.heal(30);
+        const special = ["magnet", "power"][Math.floor(this.random() * 2)];
+        if (special === "magnet") for (const x of this.drops) if (x.type === "xp") x.pull = true;
+        else this.player.power = 12;
+        contents = { kind: "bonus", special };
+      }
+    }
+    this.runStats.chests = (this.runStats.chests || 0) + 1;
+    this.chest = contents;
+    this.state = "chest";
+    this.onEvent("chest", contents);
+  }
+  closeChest() {
+    if (this.state !== "chest") return;
+    this.chest = null;
+    this.state = "playing";
+    this.onEvent("chestClosed");
+    this.checkLevel();
+    if (this.state === "playing" && this.pendingSeason) this.finishSeason();
   }
   recordGrowth(kind, id, level) {
     this.runStats.history.push({
@@ -253,7 +352,8 @@ export class Game {
   makeChoices() {
     const pool = [];
     for (const w of WEAPONS) {
-      const own = this.weapons.find((x) => x.id === w.id);
+      const own = this.weaponOf(w.id);
+      if (own && BY_ID[own.id].evolved) continue;
       if (own && own.level < w.max)
         pool.push({ kind: "weapon", id: w.id, level: own.level + 1 });
       else if (!own && this.weapons.length < MAX_WEAPONS)
@@ -287,14 +387,8 @@ export class Game {
     if (this.state !== "levelup" || !this.choices[i]) return;
     const c = this.choices[i];
     if (c.kind === "weapon") this.addWeapon(c.id);
-    else if (c.kind === "passive") {
-      this.passives[c.id] = c.level;
-      this.recordGrowth("passive", c.id, c.level);
-      if (c.id === "health") {
-        this.player.maxHp += 20;
-        this.heal(20);
-      }
-    } else {
+    else if (c.kind === "passive") this.gainPassive(c.id);
+    else {
       this.heal(30);
       this.recordGrowth("heal", "heal", 1);
     }
@@ -351,8 +445,8 @@ export class Game {
       id: ++this.id,
       x,
       y,
-      hp: base.hp * scale * (elite ? 5 : 1),
-      maxHp: base.hp * scale * (elite ? 5 : 1),
+      hp: base.hp * scale * (elite ? eliteHealth(type, progress) : 1),
+      maxHp: base.hp * scale * (elite ? eliteHealth(type, progress) : 1),
       elite,
       slow: 0,
       slowTime: 0,
@@ -371,8 +465,13 @@ export class Game {
       damage: base.damage * (1 + progress * 0.55),
     };
     if (elite) {
-      e.r *= 1.3;
-      e.speed *= 0.85;
+      // Elites are mini-bosses: bulky, hard-hitting, and resistant to crowd control,
+      // so the treasure chest they carry is earned over a 20–30 second fight.
+      e.r *= 1.35;
+      e.damage *= 1.8;
+      // Hell mode spawns elites every 55 s; only every other one carries a chest.
+      this.eliteSpawns = (this.eliteSpawns || 0) + 1;
+      e.chest = this.mode !== "hell" || this.eliteSpawns % 2 === 1;
     }
     this.enemies.push(e);
     if (type === "boss") this.boss = e;
@@ -381,7 +480,8 @@ export class Game {
   damage(e, n, color = "#f7e8b1", knock = 0, source = null) {
     if (e.hp <= 0 || !Number.isFinite(n) || n <= 0) return;
     const actual = Math.min(e.hp, n);
-    const record = source ? this.weaponRecord(source) : null;
+    // Sources are base family ids; credit the equipped entry (which may be evolved).
+    const record = source ? this.weaponRecord(this.weaponOf(source)?.id ?? source) : null;
     if (record) {
       record.damage += actual;
       record.hits++;
@@ -397,11 +497,11 @@ export class Game {
         life: 0.6,
       });
     if (knock && e.type !== "boss") {
-      const a = angle(this.player, e);
+      const a = angle(this.player, e), push = e.elite ? knock * 0.25 : knock;
       // Knockback may cross the arena edge, but never far enough to make the
       // enemy count as absent or drop rewards out of reach.
-      e.x = clamp(e.x + Math.cos(a) * knock, -EDGE_BAND, WORLD + EDGE_BAND);
-      e.y = clamp(e.y + Math.sin(a) * knock, -EDGE_BAND, WORLD + EDGE_BAND);
+      e.x = clamp(e.x + Math.cos(a) * push, -EDGE_BAND, WORLD + EDGE_BAND);
+      e.y = clamp(e.y + Math.sin(a) * push, -EDGE_BAND, WORLD + EDGE_BAND);
     }
     if (e.hp <= 0) {
       this.kills++;
@@ -428,6 +528,9 @@ export class Game {
           pull: false,
         });
       }
+      // Elites always leave a treasure chest; it must be walked over, magnets ignore it.
+      if (e.elite && e.chest !== false)
+        this.drops.push({ x: clamp(dropX - 14, 40, WORLD - 40), y: dropY, type: "chest", value: 0, pull: false });
       if (e.burn > 0 && e.propagates) {
         const next = this.nearest(e, 60, new Set([e.id]));
         if (next) {
@@ -449,11 +552,14 @@ export class Game {
       n = Math.min(n, Math.max(0, 50 - spent));
       if (n <= 0) return;
     }
-    const charm = this.weapons.find((w) => w.id === "charm");
+    const charm = this.weaponOf("charm");
     if (charm?.shields > 0) {
       charm.shields--;
       this.runStats.blocked++;
-      p.invuln = this.stats(charm).invuln;
+      const cs = this.stats(charm);
+      p.invuln = cs.invuln;
+      // 고목의 가호: losing the last shield grants a short damage-reduction window.
+      if (cs.evolved && charm.shields === 0) p.guard = 5;
       if (contactEnemy) contactEnemy.nextContactAt = this.time + 0.6;
       this.effect("ward", bodyCenter(p), {
         color: "#dfcd97",
@@ -467,6 +573,7 @@ export class Game {
       contactEnemy.nextContactAt = this.time + 0.6;
       this.contactDamageHistory.push({time:this.time,damage:n});
     }
+    if (p.guard > 0) n *= 0.7;
     this.runStats.taken += Math.min(p.hp, n);
     p.hp = Math.max(this.sandbox && !this.sandboxMortal ? 1 : 0, p.hp - n);
     p.invuln = contactEnemy ? 0.15 : 0.85;
@@ -493,7 +600,7 @@ export class Game {
   slow(e, amount, duration) {
     e.slow = Math.max(
       e.slow,
-      e.type === "boss" ? Math.min(0.15, amount) : amount,
+      e.type === "boss" ? Math.min(0.15, amount) : e.elite ? Math.min(0.3, amount) : amount,
     );
     e.slowTime = Math.max(e.slowTime, duration);
   }
@@ -508,6 +615,8 @@ export class Game {
       tick: s.tick,
       burn: s.burn,
       slow: s.slow,
+      ember: s.ember,
+      burst: s.burst,
     };
     this.zones.push(z);
     const cap = type === "spore" ? s.cap : 24;
@@ -535,10 +644,11 @@ export class Game {
     });
   }
   fireWeapon(w, s) {
-    const p = this.player,
-      t = ["acorn", "vine", "boomerang"].includes(w.id) ? this.directionalTarget(s.range || 450) : this.nearest(p, s.range || 450);
-    if (["stone", "charm", "spore", "bee"].includes(w.id)) return;
-    if (w.id === "turret") {
+    // Evolutions reuse their base family's firing logic; `s.evolved` adds the extra effect.
+    const kind = baseOf(w.id), p = this.player,
+      t = ["acorn", "vine", "boomerang"].includes(kind) ? this.directionalTarget(s.range || 450) : this.nearest(p, s.range || 450);
+    if (["stone", "charm", "spore", "bee"].includes(kind)) return;
+    if (kind === "turret") {
       this.turrets = this.turrets.filter((t) => t.life > 0);
       if (this.turrets.length >= s.count) {
         w.timer = 0.5;
@@ -556,9 +666,9 @@ export class Game {
       w.timer = s.interval;
       return;
     }
-    if (!t && !["ice", "seed"].includes(w.id)) return;
+    if (!t && !["ice", "seed"].includes(kind)) return;
     w.timer = s.cooldown;
-    if (w.id === "seed") {
+    if (kind === "seed") {
       const origin = bodyCenter(p);
       const direction = s.alternate && w.seedDirection === 1 ? -1 : 1;
       w.seedDirection = direction;
@@ -572,7 +682,7 @@ export class Game {
       }
       return;
     }
-    if (w.id === "boomerang") {
+    if (kind === "boomerang") {
       const origin=bodyCenter(p);
       for(let i=0;i<s.count&&this.bullets.length<240;i++) {
         const other=i ? this.nearest(origin,s.range,new Set([t.id])) || t : t;
@@ -582,19 +692,19 @@ export class Game {
           travel:0,returning:false,age:0,trail:[],seen:new Set(),s:{...s}});
       }
     }
-    if (w.id === "acorn") {
+    if (kind === "acorn") {
       for (let i = 0; i < s.count; i++)
         this.shoot("acorn", p, t, s, 0);
     }
-    if (w.id === "bounce" || w.id === "fire") {
+    if (kind === "bounce" || kind === "fire") {
       const excluded = new Set();
       for (let i = 0; i < s.count; i++) {
         const target = this.nearest(p, s.range, excluded) || t;
         excluded.add(target.id);
-        this.shoot(w.id, p, target, s);
+        this.shoot(kind, p, target, s);
       }
     }
-    if (w.id === "tail") {
+    if (kind === "tail") {
       const a = angle(p, t);
       const hit = new Set();
       const swipe = (dir) => {
@@ -625,8 +735,14 @@ export class Game {
           run: () => swipe(a + Math.PI),
         });
       }
+      // 폭풍 꼬리: a wind wave rolls outward after the swipe, pushing everything back.
+      if (s.evolved)
+        this.hazards.push({
+          type: "gust", x: p.x, y: p.y, delay: 0.2, age: 0, seen: new Set(),
+          s: { damage: s.damage * 0.5, range: s.range * 2.4, slow: 0, duration: 0, knockback: 70, source: "tail", color: "#f2dca2", grow: 0.35 },
+        });
     }
-    if (w.id === "vine") {
+    if (kind === "vine") {
       const a = angle(p, t);
       const visited = new Set();
       for (const dir of s.double ? [a, a + Math.PI / 2] : [a]) {
@@ -656,10 +772,23 @@ export class Game {
           width: s.width * 0.3,
           life: 0.34,
         });
+        // 고목의 손길: roots burst sideways from the whip tip and hold enemies there.
+        if (s.evolved) {
+          const tip = { x: p.x + Math.cos(dir) * s.range, y: p.y + Math.sin(dir) * s.range };
+          for (const e of this.grid.near(tip.x, tip.y, 70)) {
+            if (visited.has(e.id) || dist(tip, e) > 70 + e.r) continue;
+            visited.add(e.id);
+            this.damage(e, s.damage * 0.6, "#bce98b", 0, "vine");
+            if (e.type === "boss") this.slow(e, 0.15, 0.5);
+            else e.root = Math.max(e.root, 0.45);
+          }
+          this.effect("ring", tip, { r: 70, color: "#9fcf6a", life: 0.3, width: 3 });
+        }
       }
     }
-    if (w.id === "lightning") {
+    if (kind === "lightning") {
       const seen = new Set();
+      let last = t;
       const chain = (source, remaining) => {
         let prev = source;
         for (let i = 0; i < remaining; i++) {
@@ -675,6 +804,7 @@ export class Game {
           });
           prev = next;
         }
+        last = prev;
       };
       seen.add(t.id);
       this.damage(t, s.damage, "#fff3b2", 0, "lightning");
@@ -687,9 +817,12 @@ export class Game {
         chain(t, 3);
         chain(t, s.count - seen.size);
       } else chain(t, s.count - 1);
+      // 뇌우의 가지: a delayed heavy strike lands where the chain ended.
+      if (s.evolved)
+        this.hazards.push({ type: "strike", x: last.x, y: last.y, delay: 0.5, r: 75, damage: s.damage * 1.3 });
       this.onEvent("lightning");
     }
-    if (w.id === "ice") {
+    if (kind === "ice") {
       const center = bodyCenter(p);
       this.hazards.push({
         type: "ice",
@@ -710,14 +843,20 @@ export class Game {
           s: { ...s },
           seen: new Set(),
         });
+      // 겨울잠의 결계: a frost field lingers after the last ring has passed.
+      if (s.evolved)
+        this.hazards.push({
+          type: "frost", x: center.x, y: center.y, delay: s.double ? 1.05 : 0.6,
+          run: () => this.addZone("frost", center, { radius: s.range * 0.9, duration: 2.2, tick: 0, slow: 0.4 }),
+        });
     }
   }
   updateWeapons(dt, moved) {
     const p = this.player;
     for (const w of this.weapons) {
-      const s = this.stats(w);
+      const s = this.stats(w), kind = baseOf(w.id);
       w.timer -= dt;
-      if (w.id === "charm") {
+      if (kind === "charm") {
         if (w.shields < s.count) {
           w.charge += dt;
           if (w.charge >= s.recharge) {
@@ -731,7 +870,7 @@ export class Game {
         } else w.charge = 0;
         continue;
       }
-      if (w.id === "stone") {
+      if (kind === "stone") {
         for (let i = 0; i < s.count; i++) {
           const q = stoneOrbit(this, s, i);
           for (const e of this.grid.near(q.x, q.y, 10)) {
@@ -741,9 +880,20 @@ export class Game {
             }
           }
         }
+        // 산의 수호: a shockwave bursts between the orbits every 3 seconds.
+        if (s.evolved) {
+          w.charge += dt;
+          if (w.charge >= 3) {
+            w.charge -= 3;
+            const center = bodyCenter(p), reach = s.range * 1.7 + 20;
+            for (const e of this.grid.near(center.x, center.y, reach))
+              if (dist(center, e) <= reach + e.r) this.damage(e, s.damage * 1.5, "#e8e2c8", 30, "stone");
+            this.effect("ring", center, { r: reach, color: "#e8e2c8", life: 0.35, width: 3 });
+          }
+        }
         continue;
       }
-      if (w.id === "spore") {
+      if (kind === "spore") {
         w.travel += moved;
         while (w.travel >= s.distance) {
           w.travel -= s.distance;
@@ -751,13 +901,13 @@ export class Game {
         }
         continue;
       }
-      if (w.id === "bee") {
+      if (kind === "bee") {
         this.updateBees(w, s, dt);
         continue;
       }
       if (w.timer <= 0) this.fireWeapon(w, s);
     }
-    const tw = this.weapons.find((w) => w.id === "turret");
+    const tw = this.weaponOf("turret");
     if (tw) {
       const s = this.stats(tw);
       for (const t of this.turrets) {
@@ -770,11 +920,14 @@ export class Game {
           const target = this.nearest(muzzle, s.range);
           t.tracking = Boolean(target);
           if (target) {
+            // 풍년 창고: every third volley is a heavy acorn with a small splash.
+            t.volley = (t.volley || 0) + 1;
+            const splash = s.evolved && t.volley % 3 === 0;
             this.shoot(
               "acorn",
               muzzle,
               target,
-              { ...s, pierce: 1, range: s.range + 32 },
+              { ...s, pierce: 1, range: s.range + 32, splash, damage: splash ? s.damage * 1.4 : s.damage },
               0,
               "turret",
             );
@@ -866,6 +1019,14 @@ export class Game {
       } else {
         b.x += Math.cos(a) * s.speed * dt;
         b.y += Math.sin(a) * s.speed * dt;
+        // 여왕벌의 행진: returning bees drip slowing honey along their path.
+        if (s.evolved && b.state === "return") {
+          b.honey = (b.honey || 0) - dt;
+          if (b.honey <= 0) {
+            b.honey = 0.16;
+            this.addZone("honey", b, { radius: 20, duration: 1.4, tick: 0, slow: 0.3 });
+          }
+        }
       }
       if (b.state === "return" && b.age > 2) {
         b.x = this.player.x;
@@ -890,6 +1051,17 @@ export class Game {
       this.damage(e, b.s.damage, "#d9e9b6", 0, "seed");
       this.slow(e, b.s.slow, b.s.slowDuration);
     }
+    // 만개한 씨앗: a finished seed scatters three small seeds from where it landed.
+    if (b.life <= 0 && b.s.evolved && !b.mini) {
+      const mini = { ...b.s, evolved: false, damage: b.s.damage * 0.5, range: b.s.range * 0.35, duration: 0.7, radius: 6 };
+      for (let i = 0; i < 3 && this.bullets.length < 240; i++)
+        this.bullets.push({
+          id: ++this.id, type: "seed", source: "seed", x: b.x, y: b.y, mini: true,
+          origin: { x: b.x, y: b.y }, phase: i * Math.PI * 2 / 3, direction: -b.direction,
+          age: 0, life: mini.duration, r: mini.radius, trail: [], seen: new Set(), s: mini,
+        });
+      this.effect("ring", b, { r: 26, color: "#dfe9a6", life: 0.25 });
+    }
   }
   updateBoomerang(b,dt) {
     const before={x:b.x,y:b.y},home=bodyCenter(this.player);
@@ -908,7 +1080,20 @@ export class Game {
       b.seen.add(e.id);
       this.damage(e,b.s.damage*(b.returning?b.s.returnPower:1),"#edc58b",0,"boomerang");
     }
-    if(b.returning&&dist(b,home)<8)b.life=0;
+    if(b.returning&&dist(b,home)<8) {
+      b.life=0;
+      // 숲바람 부메랑: the catch releases three piercing leaf blades along the flight line.
+      if(b.s.evolved) {
+        const a=angle(before,home);
+        for(const offset of [-0.32,0,0.32]) {
+          if(this.bullets.length>=240)break;
+          this.bullets.push({id:++this.id,type:"leaf",source:"boomerang",x:home.x,y:home.y,
+            vx:Math.cos(a+offset)*430,vy:Math.sin(a+offset)*430,life:0.55,r:5,trail:[],
+            s:{damage:b.s.damage*0.6,pierce:3},seen:new Set(),remaining:3,last:null});
+        }
+        this.effect("ring",home,{r:30,color:"#bfe08a",life:0.2});
+      }
+    }
     if(!b.returning&&b.travel>=b.s.range) {b.returning=true;b.seen.clear();}
   }
   updateBullets(dt) {
@@ -944,6 +1129,12 @@ export class Game {
           b.life = -1;
           break;
         }
+        // 풍년 창고: heavy storehouse acorns splash nearby enemies on impact.
+        if (b.s.splash) {
+          for (const o of this.grid.near(e.x, e.y, 42))
+            if (o !== e && dist(o, e) <= 42 + o.r) this.damage(o, b.s.damage * 0.6, "#f0d1a0", 0, b.source || b.type);
+          this.effect("ring", e, { r: 42, color: "#e9c98a", life: 0.22 });
+        }
         b.remaining--;
         if (b.type === "bounce")
           this.effect("ricochet", e, { color: "#9af3e5", r: 28, life: 0.25 });
@@ -974,10 +1165,29 @@ export class Game {
               "bounce",
             );
           this.effect("ring", b.last, { r: 48, color: "#e9bd77", life: 0.3 });
+          // 황금 도토리 당구: the blast throws four golden shards outward.
+          if (b.s.evolved)
+            for (let i = 0; i < 4; i++)
+              this.fragment(b.last, Math.PI / 4 + i * Math.PI / 2, { damage: b.s.damage * 0.4, source: "bounce", life: 0.4, r: 4, skip: b.seen });
+        }
+        // 풍년의 새총: an acorn that spent its pierce splits into three small acorns.
+        if (b.type === "acorn" && b.source === "acorn" && b.s.evolved && !b.split && b.last && b.remaining <= 0) {
+          const a = Math.atan2(b.vy, b.vx);
+          for (const offset of [-0.45, 0, 0.45])
+            this.fragment(b.last, a + offset, { damage: b.s.damage * 0.5, source: "acorn", life: 0.45, r: 3, skip: b.seen });
         }
       }
     }
     this.bullets = this.bullets.filter((b) => b.life > 0);
+  }
+  // A short-lived straight shard used by evolved effects; never splits again.
+  fragment(p, a, { damage, source, life, r, skip = new Set() }) {
+    if (this.bullets.length >= 240) return;
+    this.bullets.push({
+      id: ++this.id, type: "acorn", source, x: p.x, y: p.y, split: true,
+      vx: Math.cos(a) * 400, vy: Math.sin(a) * 400, life, r, trail: [],
+      s: { damage, pierce: 1 }, seen: new Set(skip), remaining: 1, last: null,
+    });
   }
   updateZones(dt) {
     const exposures = new Map();
@@ -996,7 +1206,7 @@ export class Game {
       }
     }
     for (const { e, z } of exposures.values()) {
-      if ((e.zoneTicks[z.type] || 0) <= this.time) {
+      if (z.tick > 0 && (e.zoneTicks[z.type] || 0) <= this.time) {
         this.damage(
           e,
           z.tick,
@@ -1007,16 +1217,53 @@ export class Game {
         e.zoneTicks[z.type] = this.time + 0.5;
       }
     }
+    for (const z of this.zones) {
+      if (z.life > 0) continue;
+      // 잿불 숲: a burnt-out fire leaves a small ember patch behind.
+      if (z.type === "fire" && z.ember)
+        this.addZone("fire", z, { radius: z.r * 0.55, duration: 1.6, tick: z.tick * 0.5, burn: false });
+      // 숲의 숨결: a fading spore cloud bursts once, hurting and slowing everything around it.
+      if (z.type === "spore" && z.burst) {
+        const reach = z.r * 1.4;
+        for (const e of this.grid.near(z.x, z.y, reach)) {
+          if (dist(z, e) > reach + e.r) continue;
+          this.damage(e, z.tick * 2, "#d6abe6", 0, "spore");
+          this.slow(e, 0.3, 1.2);
+        }
+        this.effect("ring", z, { r: reach, color: "#cfa6e0", life: 0.3, width: 3 });
+      }
+    }
     this.zones = this.zones.filter((z) => z.life > 0);
   }
   updateHazards(dt) {
     for (const h of this.hazards) {
       h.delay -= dt;
       if (h.delay > 0) continue;
-      if (h.type === "tail") {
+      if (h.type === "tail" || h.type === "frost") {
         h.run();
         h.dead = true;
         continue;
+      }
+      // 뇌우의 가지: delayed heavy strike.
+      if (h.type === "strike") {
+        for (const e of this.grid.near(h.x, h.y, h.r))
+          if (dist(h, e) <= h.r + e.r) this.damage(e, h.damage, "#fff3b2", 0, "lightning");
+        this.effect("bolt", { x: h.x + 14, y: h.y - 220 }, { x2: h.x, y2: h.y, color: "#fff7c8", life: 0.3, width: 3 });
+        this.effect("ring", h, { r: h.r, color: "#f4ea9c", life: 0.35, width: 3 });
+        h.dead = true;
+        continue;
+      }
+      // 폭풍 꼬리: an expanding wind ring that knocks enemies away once.
+      if (h.type === "gust") {
+        h.age += dt;
+        const r = h.s.range * Math.min(1, h.age / h.s.grow);
+        for (const e of this.grid.near(h.x, h.y, r + 12)) {
+          if (!h.seen.has(e.id) && Math.abs(dist(h, e) - r) < e.r + 20) {
+            h.seen.add(e.id);
+            this.damage(e, h.s.damage, h.s.color, h.s.knockback, h.s.source);
+          }
+        }
+        if (h.age >= h.s.grow) h.dead = true;
       }
       if (h.type === "ice") {
         h.age += dt;
@@ -1205,8 +1452,8 @@ export class Game {
       r.history.every(
         (h) =>
           h &&
-          ["weapon", "passive", "heal"].includes(h.kind) &&
-          (h.kind === "weapon"
+          ["weapon", "evolve", "passive", "heal"].includes(h.kind) &&
+          (h.kind === "weapon" || h.kind === "evolve"
             ? BY_ID[h.id]
             : h.kind === "passive"
               ? PASSIVES.some((p) => p.id === h.id)
@@ -1306,6 +1553,16 @@ export class Game {
       range = 52 + (this.passives.magnet || 0) * 24;
     for (const d of this.drops) {
       const n = dist(d, p);
+      if (d.type === "chest") {
+        // Chests are never pulled; walk over them to open.
+        if (n < p.r + 20) {
+          d.dead = true;
+          this.drops = this.drops.filter((x) => !x.dead);
+          this.openChest();
+          return;
+        }
+        continue;
+      }
       if (n < range) d.pull = true;
       if (d.pull) {
         const a = angle(d, p),
@@ -1388,7 +1645,7 @@ export class Game {
       !Array.isArray(s.weapons) ||
       s.weapons.length < 1 ||
       s.weapons.length > 6 ||
-      new Set(s.weapons.map((w) => w.id)).size !== s.weapons.length
+      new Set(s.weapons.map((w) => baseOf(w.id))).size !== s.weapons.length
     )
       throw Error("Invalid checkpoint");
     const p = s.player;
@@ -1485,6 +1742,7 @@ export class Game {
     this.time += dt;
     p.invuln = Math.max(0, p.invuln - dt);
     p.power = Math.max(0, p.power - dt);
+    p.guard = Math.max(0, (p.guard || 0) - dt);
     this.shake = Math.max(0, this.shake - dt * 30);
     const len = Math.hypot(input.x, input.y) || 1,
       speed =
@@ -1545,12 +1803,14 @@ export class Game {
         this.eliteClock <= 0 &&
         !this.wavePending && this.time >= this.waveRestUntil &&
         (!this.boss || this.mode === "hell") &&
-        this.enemies.length < budget.cap
+        this.enemies.length < budget.cap &&
+        // Mini-bosses that nobody can kill should pile up into a lethal wall, not into hundreds of sponges.
+        this.enemies.filter(e => e.elite && e.hp > 0 && !e.escaped).length < 8
       ) {
         const boars = this.enemies.filter(e => e.type === "boar" && e.hp > 0 && !e.escaped);
         const eliteBoar = this.season > 1 && boars.length < budget.boarCap && !boars.some(e => e.elite);
         this.spawn(eliteBoar ? "boar" : "fox", true);
-        this.eliteClock = this.mode === "hell" ? 55 : Math.max(45, this.seasonDuration * 0.55);
+        this.eliteClock = this.mode === "hell" ? hellEliteInterval(this.time) : Math.max(45, this.seasonDuration * 0.55);
         this.onEvent("elite");
       }
     }
