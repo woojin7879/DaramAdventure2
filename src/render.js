@@ -1,3 +1,4 @@
+import { drawWaveWarning } from "./waves.js";
 import { drawSkyShield, drawBoomerang, drawSeed } from "./weapon-art.js";
 import { opaqueBossAtlas } from "./boss-opacity.js";
 import { seasonLayers, groundFrame, sceneryPlacement } from "./season-art.js";
@@ -777,6 +778,7 @@ export class Renderer {
       this.circle(shot.x, shot.y, 5, shot.theme === "venom" ? "#71eed0" : "#f49cbf");
       this.circle(shot.x - 1, shot.y - 2, 2, "#fff1dd");
     }
+    drawWaveWarning(c, g);
     for (const h of g.hazards) {
       if (drawPatternSprite(c,this.images,h,g.year)) continue;
       if (drawBossHazard(c,h,g.time,h.bossYear || g.year)) continue;

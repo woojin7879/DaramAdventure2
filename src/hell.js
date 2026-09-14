@@ -21,6 +21,7 @@ export function hellBudget(time, season) {
     cap: Math.min(240, Math.round(budget.cap * 1.35)),
     interval: Math.max(.14, budget.interval * .72 / (1 + Math.max(0, time - 1800) / 1800)),
     mushroomCap: time < 60 ? 0 : Math.min(22, 3 + Math.floor(time / 90)),
+    boarCap: time < 180 ? 0 : Math.min(18, 8 + Math.floor(time / 300)),
     shotCap: Math.round(24 + ramp * 48),
     weights: time < 60 ? {snake:90,fox:10,bat:0,mushroom:0,boar:0}
       : time < 180 ? {snake:60,fox:20,bat:10,mushroom:10,boar:0}

@@ -33,8 +33,12 @@ export function encounterBudget(time, seasonDuration, season, boss = false) {
           ? { snake: 25, fox: 26, bat: 15, mushroom: 22, boar: 12 }
           : { snake: 20, fox: 24, bat: 16, mushroom: 20, boar: 20 };
   return {
-    interval: boss ? 3 : a[1] + (b[1] - a[1]) * blend,
-    cap: boss ? 40 : Math.round(a[2] + (b[2] - a[2]) * blend),
+    // Keep the existing population budget when a boss arrives. Reducing the
+    // cap below the living population used to stop reinforcements entirely.
+    // Slightly slower replenishment leaves room to read the boss's attacks.
+    interval: (a[1] + (b[1] - a[1]) * blend) * (boss ? 1.35 : 1),
+    cap: Math.round(a[2] + (b[2] - a[2]) * blend),
+    boarCap: [0, 2, 6, 8][season],
     mushroomCap: mushroomReady
       ? season === 0
         ? t < 180
@@ -47,12 +51,14 @@ export function encounterBudget(time, seasonDuration, season, boss = false) {
   };
 }
 export function pickEnemy(budget, enemies, random) {
+  const boars = enemies.filter(e => e.hp > 0 && !e.escaped && e.type === "boar").length;
   const mushrooms = enemies.filter(
     (e) => e.hp > 0 && !e.escaped && e.type === "mushroom",
   ).length;
   const pool = Object.entries(budget.weights).filter(
     ([id, weight]) =>
-      weight > 0 && (id !== "mushroom" || mushrooms < budget.mushroomCap),
+      weight > 0 && (id !== "mushroom" || mushrooms < budget.mushroomCap) &&
+      (id !== "boar" || boars < (budget.boarCap ?? Infinity)),
   );
   let roll = random() * pool.reduce((sum, [, weight]) => sum + weight, 0);
   for (const [id, weight] of pool) {

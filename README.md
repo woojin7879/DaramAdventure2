@@ -1,12 +1,12 @@
 # 다람이의 모험 2 · Darami Adventure 2
 
-다람이의 모험에서 이어지는 JavaScript 생존 액션 게임. **정식 버전 v1.0.0**입니다.
+다람이의 모험에서 이어지는 JavaScript 생존 액션 게임. **정식 버전 v1.0.1**입니다.
 
 맥·윈도우 실행 파일은 [GitHub Releases](https://github.com/woojin7879/DaramAdventure2/releases)에서 받습니다. 설치/빌드 안내는 [데스크톱 배포](docs/DESKTOP.md)를 참고하세요.
 
 ## 패치노트
 
-메인 화면 한켠에서 최신 버전과 요약을 확인하고 전체 패치노트를 열 수 있습니다. [v1.0.0 패치노트](CHANGELOG.md)에서 변경 내역을 확인할 수 있습니다.
+메인 화면 한켠에서 최신 버전과 요약을 확인하고 전체 패치노트를 열 수 있습니다. [v1.0.1 패치노트](CHANGELOG.md)에서 변경 내역을 확인할 수 있습니다.
 
 다음 업데이트는 `src/release-notes.js`의 목록 맨 위에 추가하며 기존 내역을 유지합니다. 해당 파일이 게임 화면과 배포용 패치노트의 공통 원본입니다. `GAME_VERSION`, `package.json`, `package-lock.json`의 버전이 다르면 빌드가 실패합니다. 배포 승인 후 실제 공개 날짜를 기록합니다. 빌드 결과에도 `CHANGELOG.md`가 포함됩니다.
 

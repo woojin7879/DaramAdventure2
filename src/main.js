@@ -167,6 +167,8 @@ function event(type, message) {
   if (type === "hurt") tone(90, 0.18, 0.045, "triangle");
   if (type === "block") tone(880, 0.12);
   if (type === "lightning") tone(160, 0.07, 0.012, "sawtooth");
+  if (type === "formation") toast(message);
+  if (type === "bossPressure") toast(message);
   if (type === "wave") toast("박쥐 떼 · 비행 경로에서 비켜나세요");
   if (type === "special") {
     toast(message);

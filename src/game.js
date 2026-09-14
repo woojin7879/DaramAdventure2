@@ -1,3 +1,4 @@
+import { updateWaves } from "./waves.js";
 import { ringHits } from "./chapter-combat.js";
 import { yearDifficulty } from "./difficulty.js";
 import { hellDifficulty, hellBudget, hellBossYear, hellBossTime } from "./hell.js";
@@ -103,7 +104,12 @@ export class Game {
       since: 0,
     };
     this.enemyShots = [];
-    this.waveClock = 24;
+    this.waveClock = 0;
+    this.waveIndex = 0;
+    this.wavePending = null;
+    this.waveRestUntil = 0;
+    this.bossPressureStage = 0;
+    this.contactDamageHistory = [];
     this.weapons = [];
     this.passives = {};
     this.enemies = [];
@@ -228,6 +234,19 @@ export class Game {
     }
     return best;
   }
+  directionalTarget(range) {
+    const p = this.player, move = this.attackDirection;
+    if (!p.moving || !move) return this.nearest(p, range);
+    let best = null, score = Infinity;
+    for (const e of this.grid.near(p.x, p.y, range)) {
+      const d = dist(p, e);
+      if (d >= range) continue;
+      const dot = ((e.x-p.x)*move.x+(e.y-p.y)*move.y)/(d||1);
+      const value = d * (dot > 0.4 ? 0.35 : 1);
+      if (value < score) { score=value; best=e; }
+    }
+    return best;
+  }
   makeChoices() {
     const pool = [];
     for (const w of WEAPONS) {
@@ -323,6 +342,7 @@ export class Game {
       type,
       bossKind: type === "boss" ? chapter(bossYear).bossKind : null,
       bossYear: type === "boss" ? bossYear : null,
+      spawnedAt: this.time,
       id: ++this.id,
       x,
       y,
@@ -408,14 +428,23 @@ export class Game {
       }
     }
   }
-  hurt(n) {
+  hurt(n, contactEnemy = null) {
     const p = this.player;
     if (p.invuln > 0 || this.state !== "playing" || (this.sandbox && this.sandboxInvincible)) return;
+    if (contactEnemy && (contactEnemy.nextContactAt || 0) > this.time) return;
+    n *= this.mode === "hell" ? hellDifficulty(this.time).damage : yearDifficulty(this.year, this.time / (this.seasonDuration * 4)).damage;
+    if (contactEnemy) {
+      this.contactDamageHistory = this.contactDamageHistory.filter(hit => this.time - hit.time < 0.5);
+      const spent = this.contactDamageHistory.reduce((sum, hit) => sum + hit.damage, 0);
+      n = Math.min(n, Math.max(0, 50 - spent));
+      if (n <= 0) return;
+    }
     const charm = this.weapons.find((w) => w.id === "charm");
     if (charm?.shields > 0) {
       charm.shields--;
       this.runStats.blocked++;
       p.invuln = this.stats(charm).invuln;
+      if (contactEnemy) contactEnemy.nextContactAt = this.time + 0.6;
       this.effect("ward", bodyCenter(p), {
         color: "#dfcd97",
         r: 48,
@@ -424,10 +453,13 @@ export class Game {
       this.onEvent("block");
       return;
     }
-    n *= this.mode === "hell" ? hellDifficulty(this.time).damage : yearDifficulty(this.year, this.time / (this.seasonDuration * 4)).damage;
+    if (contactEnemy) {
+      contactEnemy.nextContactAt = this.time + 0.6;
+      this.contactDamageHistory.push({time:this.time,damage:n});
+    }
     this.runStats.taken += Math.min(p.hp, n);
     p.hp = Math.max(this.sandbox && !this.sandboxMortal ? 1 : 0, p.hp - n);
-    p.invuln = 0.85;
+    p.invuln = contactEnemy ? 0.15 : 0.85;
     this.shake = 7;
     this.onEvent("hurt");
     if (p.hp === 0) {
@@ -494,7 +526,7 @@ export class Game {
   }
   fireWeapon(w, s) {
     const p = this.player,
-      t = this.nearest(p, s.range || 450);
+      t = ["acorn", "vine", "boomerang"].includes(w.id) ? this.directionalTarget(s.range || 450) : this.nearest(p, s.range || 450);
     if (["stone", "charm", "spore", "bee"].includes(w.id)) return;
     if (w.id === "turret") {
       this.turrets = this.turrets.filter((t) => t.life > 0);
@@ -533,7 +565,8 @@ export class Game {
     if (w.id === "boomerang") {
       const origin=bodyCenter(p);
       for(let i=0;i<s.count&&this.bullets.length<240;i++) {
-        const direction=angle(origin,t)+(i-(s.count-1)/2)*.35;
+        const other=i ? this.nearest(origin,s.range,new Set([t.id])) || t : t;
+        const direction=angle(origin,other);
         this.bullets.push({id:++this.id,type:"boomerang",source:"boomerang",x:origin.x,y:origin.y,
           vx:Math.cos(direction)*s.speed,vy:Math.sin(direction)*s.speed,life:5,r:s.radius,
           travel:0,returning:false,age:0,trail:[],seen:new Set(),s:{...s}});
@@ -541,7 +574,7 @@ export class Game {
     }
     if (w.id === "acorn") {
       for (let i = 0; i < s.count; i++)
-        this.shoot("acorn", p, t, s, (i - (s.count - 1) / 2) * 0.21);
+        this.shoot("acorn", p, t, s, 0);
     }
     if (w.id === "bounce" || w.id === "fire") {
       const excluded = new Set();
@@ -765,6 +798,7 @@ export class Game {
         seen: new Set(),
       });
     for (const [i, b] of this.bees.entries()) {
+      b.recovery = Math.max(0, (b.recovery || 0) - dt);
       if (b.state === "wait") {
         b.x = this.player.x + Math.cos(this.time * 2 + i * 2) * 24;
         b.y = this.player.y - 15 + Math.sin(this.time * 2 + i * 2) * 15;
@@ -781,6 +815,7 @@ export class Game {
           if (t) {
             b.target = t;
             b.state = "attack";
+            b.recovery = s.cooldown;
             b.age = 0;
             b.seen = new Set();
           }
@@ -806,7 +841,7 @@ export class Game {
       if (d < 12 + s.speed * dt) {
         if (b.state === "return") {
           b.state = "wait";
-          b.wait = s.cooldown;
+          b.wait = Math.max(0.15, b.recovery || 0);
         } else {
           b.seen.add(target.id);
           this.damage(target, s.damage, "#ebd47e", 0, "bee");
@@ -826,7 +861,7 @@ export class Game {
         b.x = this.player.x;
         b.y = this.player.y;
         b.state = "wait";
-        b.wait = s.cooldown;
+        b.wait = Math.max(0.15, b.recovery || 0);
       }
     }
   }
@@ -1013,6 +1048,10 @@ export class Game {
   updateEnemy(e, dt) {
     if (e.trainingDummy) return;
     e.age += dt;
+    if (e.waveLife != null) {
+      e.waveLife -= dt;
+      if (e.waveLife <= 0) { e.escaped = true; return; }
+    }
     const offscreen =
       Math.abs(e.x - this.player.x) > this.view.w / 2 + 200 ||
       Math.abs(e.y - this.player.y) > this.view.h / 2 + 200;
@@ -1030,7 +1069,7 @@ export class Game {
     if (e.type === "bat") {
       // A fixed flight line: moving aside works; the flock never homes back in.
       direction = e.heading;
-      speed *= 2.5;
+      speed = (e.waveFlightSpeed || e.speed * 2.5) * (1 - e.slow);
       if (e.age > 12 || e.x < 0 || e.y < 0 || e.x > WORLD || e.y > WORLD)
         e.escaped = true;
     } else if (e.attack) {
@@ -1099,9 +1138,14 @@ export class Game {
       }
       if (distance < 160) direction += Math.PI;
       else if (distance < 260) speed = 0;
-    } else if (e.type === "snake") {
+    } else if (e.type === "snake" && !e.formationCenter) {
       direction += Math.sin(e.age * 3.5 + e.id) * 0.65;
     }
+    if (e.formationCenter && e.type !== "mushroom") {
+      if (dist(e, e.formationCenter) < 40) e.formationCenter = null;
+      else direction = angle(e, e.formationCenter);
+    }
+    if (e.waveSentry) speed = 0;
     if (e.type === "mushroom" && e.age >= 40) speed *= 1.6;
     e.heading = direction;
     e.x += Math.cos(direction) * speed * dt;
@@ -1396,8 +1440,10 @@ export class Game {
   }
 
   encounter() {
-    return this.mode === "hell" ? hellBudget(this.time, this.season)
-      : encounterBudget(this.time, this.seasonDuration, this.season, Boolean(this.boss));
+    if (this.mode === "hell") return hellBudget(this.time, this.season);
+    const budget = encounterBudget(this.time, this.seasonDuration, this.season, Boolean(this.boss));
+    if (this.season > 0) budget.boarCap += (this.year - 1) * 2;
+    return budget;
   }
   updateHell() {
     for (const boss of this.enemies.filter(e => e.type === "boss" && e.hp <= 0)) {
@@ -1445,6 +1491,7 @@ export class Game {
     const moved = dist(p, { x: ox, y: oy });
     this.runStats.distance += moved;
     p.moving = moved > 0.01;
+    if (p.moving) this.attackDirection = {x:input.x/len,y:input.y/len};
     if (input.x) p.facing = input.x < 0 ? -1 : 1;
     const budget = this.encounter();
     const tuning = yearDifficulty(this.year, this.time / (this.seasonDuration * 4));
@@ -1473,43 +1520,21 @@ export class Game {
         this.environmentClock = 18 - this.season * 2;
       }
       this.spawnClock -= dt;
-      this.waveClock -= dt;
-      if (
-        this.waveClock <= 0 &&
-        this.time > Math.max(60, this.seasonDuration * 0.7) &&
-        (!this.boss || this.mode === "hell") &&
-        this.enemies.length < budget.cap - 9
-      ) {
-        const count = 3 + this.season * 2;
-        const first = this.spawn("bat");
-        for (let i = 1; i < count && this.enemies.length < 258; i++) {
-          const bat = this.spawn("bat");
-          bat.x = clamp(
-            first.x + Math.sin(first.heading) * i * 26,
-            35,
-            WORLD - 35,
-          );
-          bat.y = clamp(
-            first.y - Math.cos(first.heading) * i * 26,
-            35,
-            WORLD - 35,
-          );
-          bat.heading = first.heading;
-        }
-        this.waveClock = this.mode === "hell" ? 24 - this.season * 2 : 45 - this.season * 4;
-        this.onEvent("wave");
-      }
+      updateWaves(this, dt, budget);
       this.eliteClock -= dt;
-      if (this.spawnClock <= 0 && this.enemies.length < budget.cap) {
+      if (this.spawnClock <= 0 && this.enemies.filter(e => e.hp > 0 && !e.escaped).length < budget.cap - (this.wavePending?.points.length || 0)) {
         this.spawn(pickEnemy(budget, this.enemies, this.random));
-        this.spawnClock = budget.interval;
+        this.spawnClock = budget.interval * (this.time < this.waveRestUntil ? 1.7 : 1);
       }
       if (
         this.eliteClock <= 0 &&
+        !this.wavePending && this.time >= this.waveRestUntil &&
         (!this.boss || this.mode === "hell") &&
         this.enemies.length < budget.cap
       ) {
-        this.spawn(this.season > 1 ? "boar" : "fox", true);
+        const boars = this.enemies.filter(e => e.type === "boar" && e.hp > 0 && !e.escaped);
+        const eliteBoar = this.season > 1 && boars.length < budget.boarCap && !boars.some(e => e.elite);
+        this.spawn(eliteBoar ? "boar" : "fox", true);
         this.eliteClock = this.mode === "hell" ? 55 : Math.max(45, this.seasonDuration * 0.55);
         this.onEvent("elite");
       }
@@ -1531,7 +1556,7 @@ export class Game {
         }
       }
       if (e.hp > 0 && e.damage > 0 && dist(e, p) < e.r + p.r)
-        this.hurt(e.damage);
+        this.hurt(e.damage, e.type === "boss" ? null : e);
     }
     if (this.state !== "playing") return;
     this.grid.rebuild(this.enemies);

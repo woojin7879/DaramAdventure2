@@ -60,7 +60,7 @@ export const WEAPONS = [
       "공격 간격 1.1 → 0.9초",
       "탄환당 2명 관통",
       "피해 16 → 22",
-      "부채꼴 탄환 3발",
+      "집중 탄환 3발",
       "공격 간격 0.75초 · 3명 관통",
     ],
   },
@@ -329,7 +329,7 @@ export const WEAPONS = [
     glyph: "✤",
     color: "#e7ce6e",
     tag: "동료 · 추적",
-    desc: "벌들이 적을 쏘고 다람이 곁으로 돌아옵니다.",
+    desc: "벌들이 적을 쏘고 돌아옵니다. 출격 중에도 다음 공격을 준비합니다.",
     max: 8,
     stats: levels(
       { damage: 14, count: 1, range: 300, speed: 260, cooldown: 1.8 },
