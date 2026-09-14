@@ -4,7 +4,7 @@ import { Game } from "../src/game.js";
 import { BY_ID, WEAPONS, EVOLUTIONS, PASSIVES, baseOf } from "../src/data.js";
 import { EVOLUTION_ICONS, itemIcon, evolutionCrop } from "../src/item-icons.js";
 import { resultDetails } from "../src/results.js";
-import { pauseLoadout, evolutionHint } from "../src/pause-loadout.js";
+import { pauseLoadout } from "../src/pause-loadout.js";
 
 function fresh(random = () => 0.5) {
   const events = [];
@@ -41,7 +41,9 @@ test("evolution readiness needs a maxed weapon and the paired passive", () => {
   assert.equal(g.evolutionReady(w), false);
   w.level = BY_ID.acorn.max;
   assert.equal(g.evolutionReady(w), false);
-  g.passives.might = 1;
+  g.passives.might = 4;
+  assert.equal(g.evolutionReady(w), false, "a partial passive is not enough");
+  g.passives.might = 5;
   assert.equal(g.evolutionReady(w), true);
   assert.equal(g.evolve("acorn"), "harvest");
   assert.equal(g.weapons.length, 1);
@@ -57,7 +59,7 @@ test("evolution readiness needs a maxed weapon and the paired passive", () => {
 test("evolved weapons keep their family stats and are hidden from level-up cards", () => {
   const { g } = fresh();
   const w = maxed(g, "tail");
-  g.passives.area = 2;
+  g.passives.area = 5;
   const before = g.stats(w);
   g.evolve("tail");
   const after = g.stats(w);
@@ -71,7 +73,7 @@ test("evolved weapons keep their family stats and are hidden from level-up cards
 test("elites drop a chest that is opened by walking over it and pauses the game", () => {
   const { g, events } = fresh();
   maxed(g, "acorn");
-  g.passives.might = 1;
+  g.passives.might = 5;
   const e = g.spawn("boar");
   e.elite = true;
   Object.assign(e, { x: g.player.x + 60, y: g.player.y, hp: 1 });
@@ -174,7 +176,7 @@ test("evolution is preferred over growth and a level-up queued during the chest 
   const { g, events } = fresh();
   maxed(g, "charm");
   g.addWeapon("acorn");
-  g.passives.health = 1;
+  g.passives.health = 5;
   g.xp = 1e6;
   g.openChest();
   assert.equal(g.chest.kind, "evolve");
@@ -187,7 +189,7 @@ test("evolution is preferred over growth and a level-up queued during the chest 
 test("evolved loadouts survive snapshot and restore, duplicates of a family are rejected", () => {
   const { g } = fresh();
   maxed(g, "stone");
-  g.passives.health = 1;
+  g.passives.health = 5;
   g.evolve("stone");
   g.damage(g.spawn("snake"), 5, "#fff", 0, "stone");
   assert.equal(g.runStats.weapons.mountain.damage, 5);
@@ -206,14 +208,14 @@ test("evolved loadouts survive snapshot and restore, duplicates of a family are 
   assert.match(html, /진화/);
 });
 
-test("pause loadout explains evolution requirements", () => {
+test("pause loadout names an evolution only after it has happened", () => {
   const { g } = fresh();
   g.addWeapon("ice");
-  assert.match(evolutionHint(g, g.weapons[0]), /최대 강화/);
-  assert.match(evolutionHint(g, g.weapons[0]), /가벼운 발 1 이상/);
   g.weapons[0].level = BY_ID.ice.max;
-  g.passives.speed = 1;
-  assert.match(evolutionHint(g, g.weapons[0]), /준비 완료/);
+  g.passives.speed = 5;
+  const before = pauseLoadout(g);
+  assert.doesNotMatch(before, /겨울잠의 결계/);
+  assert.doesNotMatch(before, /진화 ·|준비 완료|보물상자에서 진화/);
   g.evolve("ice");
   assert.match(pauseLoadout(g), /겨울잠의 결계/);
   assert.match(pauseLoadout(g), /진화 완료/);
@@ -238,7 +240,7 @@ test("each evolved effect fires and produces its extra output", () => {
   const run = (id, frames = 900) => {
     const { g } = fresh(() => 0.5);
     const w = maxed(g, id);
-    g.passives[BY_ID[BY_ID[id].evolution].requires] = 1;
+    g.passives[BY_ID[BY_ID[id].evolution].requires] = 5;
     assert.equal(g.evolve(id), BY_ID[id].evolution);
     for (let i = 0; i < 6; i++) {
       const e = g.spawn("boar");

@@ -23,15 +23,6 @@ function weaponEffect(game, w) {
   if(s.slow) items.push(`감속 ${number(s.slow*100)}%`);
   return items.join(' · ');
 }
-// Explains what a base weapon still needs before a chest can evolve it.
-export function evolutionHint(game, w) {
-  const d = BY_ID[w.id];
-  if (!d?.evolution) return '';
-  const evo = BY_ID[d.evolution], passive = PASSIVES.find(p => p.id === evo.requires);
-  const ready = game.evolutionReady(w), hasPassive = (game.passives[evo.requires] || 0) >= 1;
-  const need = [w.level < d.max ? '최대 강화' : null, hasPassive ? null : `${passive.name} 1 이상`].filter(Boolean);
-  return `<br><span class="evolution-hint${ready ? ' ready' : ''}">진화 · ${evo.name} — ${ready ? '준비 완료 · 정예의 보물상자에서 진화' : `필요: ${need.join(' + ')}`}</span>`;
-}
 export function pauseLoadout(game) {
   const passives = PASSIVES.filter(p=>game.passives[p.id]);
   return `<section class="pause-build" aria-label="현재 성장 트리">
@@ -39,7 +30,7 @@ export function pauseLoadout(game) {
     <div class="build-list">${game.weapons.map(w=>{
       const d=BY_ID[w.id], maxed=w.level===d.max;
       if(d.evolved) return `<article class="build-item evolved">${itemIcon(w.id)}<div><div class="build-name"><b>${d.name}</b><span class="evolution-ready">진화 완료</span></div><p>${weaponEffect(game,w)}</p><p class="build-next">${d.desc}</p></div></article>`;
-      return `<article class="build-item">${itemIcon(w.id)}<div><div class="build-name"><b>${d.name}</b><span>${maxed?'MAX':`Lv.${w.level}`} / ${d.max}</span></div>${progress(w.level,d.max)}<p>${weaponEffect(game,w)}</p><p class="build-next">${maxed?'최대 강화 완료':`다음 강화 · ${d.up[w.level]}`}${evolutionHint(game,w)}</p></div></article>`;
+      return `<article class="build-item">${itemIcon(w.id)}<div><div class="build-name"><b>${d.name}</b><span>${maxed?'MAX':`Lv.${w.level}`} / ${d.max}</span></div>${progress(w.level,d.max)}<p>${weaponEffect(game,w)}</p><p class="build-next">${maxed?'최대 강화 완료':`다음 강화 · ${d.up[w.level]}`}</p></div></article>`;
     }).join('')}</div>
     ${game.weapons.length<MAX_WEAPONS?`<p class="build-empty">무기를 ${MAX_WEAPONS-game.weapons.length}개 더 장착할 수 있습니다.</p>`:''}
     <h3>패시브 <small>${passives.length} / ${PASSIVES.length}종</small></h3>

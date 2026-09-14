@@ -200,11 +200,12 @@ export class Game {
       });
     return true;
   }
-  // An evolution is ready when the base weapon is maxed and the paired passive is owned.
+  // An evolution is ready when both the base weapon and its paired passive are maxed.
   evolutionReady(w) {
     const def = BY_ID[w.id];
     if (!def || def.evolved || !def.evolution || w.level < def.max) return false;
-    return (this.passives[BY_ID[def.evolution].requires] || 0) >= 1;
+    const need = PASSIVES.find((p) => p.id === BY_ID[def.evolution].requires);
+    return need && (this.passives[need.id] || 0) >= need.max;
   }
   evolve(kind) {
     const w = this.weaponOf(kind);

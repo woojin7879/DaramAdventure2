@@ -8,7 +8,7 @@ import { playIntro } from "./intro.js";
 import { PROLOGUE, shouldPlayPrologue } from "./prologue.js";
 import { hellUnlocked, hellBossTime } from "./hell.js";
 import { recordHellRun, migrateHellRecord } from "./hell-records.js";
-import { codexHTML, codexProgress, addDiscovery } from "./codex.js";
+import { codexHTML, codexCountHTML, codexProgress, addDiscovery } from "./codex.js";
 import { StoryPlayback } from "./cinematic.js";
 import {
   CHAPTERS,
@@ -608,7 +608,7 @@ function updateCodexButton() {
 function showCodex() {
   if (game.state !== "title") return;
   const seen = store.read("evolutionsSeen", []) || [];
-  showModal("codex", `<header class="patch-heading"><span class="eyebrow">다람이의 모험 2</span><h2 id="modal-title">진화 도감</h2><p class="sub">무기를 최대 레벨로 올리고 짝이 되는 패시브를 갖춘 뒤, 정예의 보물상자를 열면 진화가 깨어납니다. 한 번 만난 진화는 도감에 영원히 남습니다.</p></header><div class="patch-scroll codex-scroll" tabindex="0" role="region" aria-label="진화 무기 도감">${codexHTML(Array.isArray(seen) ? seen : [])}</div><div class="modal-actions"><button class="primary" id="close-codex">닫기</button></div>`);
+  showModal("codex", `<header class="patch-heading"><span class="eyebrow">다람이의 모험 2</span><div class="codex-title-row"><h2 id="modal-title">진화 도감</h2>${codexCountHTML(Array.isArray(seen) ? seen : [])}</div><p class="sub">무기와 짝 패시브를 모두 최대 레벨로 올린 뒤, 정예의 보물상자를 열면 진화가 깨어납니다.</p></header><div class="patch-scroll codex-scroll" tabindex="0" role="region" aria-label="진화 무기 도감">${codexHTML(Array.isArray(seen) ? seen : [])}</div><div class="modal-actions"><button class="primary" id="close-codex">닫기</button></div>`);
   $("close-codex").onclick = () => {
     closeModal();
     $("codex").focus({ preventScroll: true });

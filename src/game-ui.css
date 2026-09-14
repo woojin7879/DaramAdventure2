@@ -40,8 +40,6 @@ body:not(.is-menu) .game-shell { width: 100%; margin: 0; border: 0; height: calc
 .weapon-slot.evolved { border-bottom-color: #f2c96a; box-shadow: inset 0 0 0 1px #f2c96a55; }
 .weapon-slot.evolved small { color: #f2c96a; }
 .build-item.evolved .build-name b, .build-name .evolution-ready { color: #f2c96a; }
-.build-next .evolution-hint { color: var(--muted); }
-.build-next .evolution-hint.ready { color: #f2c96a; }
 .weapon-slot .item-icon { width: 34px; height: 34px; }
 .passive-slots .item-icon { width: 26px; height: 26px; }
 .modal:not(:has([data-kind="ending"])) { position: fixed; inset: 0; padding: clamp(12px, 3vw, 40px); background: var(--overlay); }
@@ -253,9 +251,11 @@ body:not(.is-menu) .game-shell { width: 100%; margin: 0; border: 0; height: calc
 .modal:has([data-kind="codex"]) { overflow: hidden; padding: var(--space-md); }
 .modal-inner[data-kind="codex"] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: min(800px, calc(100svh - 32px)); max-height: calc(100svh - 32px); overflow: hidden; }
 .modal-inner[data-kind="codex"] .modal-actions { position: static; margin: 0; padding: var(--space-md) 0 0; justify-content: flex-end; border-top: 0; background: var(--panel); }
-.codex-progress { margin: 0 0 var(--space-md); color: var(--muted); font-size: 13px; }
+.codex-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); }
+.modal-inner[data-kind="codex"] .codex-title-row h2 { margin: 0; }
+.codex-progress { margin: 0; margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
 .codex-progress b { color: var(--accent); font-size: 18px; }
-.codex-grid { list-style: none; margin: 0; padding: 0 var(--space-xs) var(--space-sm) 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-sm); }
+.codex-grid { list-style: none; margin: 0; padding: 0 var(--space-xs) var(--space-sm) 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); }
 .codex-card { display: flex; gap: var(--space-md); padding: var(--space-md); border-radius: var(--radius-control); background: var(--hud-surface); border: 1px solid transparent; }
 .codex-card.unlocked { border-color: #f2c96a55; }
 .codex-icon .item-icon { width: 64px; height: 64px; }
@@ -267,6 +267,10 @@ body:not(.is-menu) .game-shell { width: 100%; margin: 0; border: 0; height: calc
 .codex-card.locked .codex-name { color: var(--muted); letter-spacing: .08em; }
 .codex-tag { color: var(--muted); font-size: 12px; }
 .codex-desc { margin: 0; font-size: 13px; line-height: 1.6; }
-.codex-recipe { margin: var(--space-xs) 0 0; display: flex; align-items: center; gap: var(--space-2xs); flex-wrap: wrap; font-size: 12px; color: var(--muted); }
-.codex-recipe .item-icon { width: 22px; height: 22px; }
-.codex-recipe i { font-style: normal; padding: 0 var(--space-2xs); }
+.codex-recipe { margin: var(--space-xs) 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font-size: 12px; color: var(--muted); }
+.codex-combo { display: inline-flex; align-items: center; gap: var(--space-xs); flex-wrap: nowrap; white-space: nowrap; max-width: 100%; }
+.codex-part { display: inline-flex; align-items: center; gap: var(--space-2xs); white-space: nowrap; }
+.codex-recipe .item-icon { width: 22px; height: 22px; flex: 0 0 auto; }
+.codex-recipe i { font-style: normal; padding: 0 2px; flex: 0 0 auto; }
+.codex-hint { white-space: nowrap; }
+.codex-unknown { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #ffffff14; color: var(--muted); font-weight: 700; }

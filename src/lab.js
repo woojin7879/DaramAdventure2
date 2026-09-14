@@ -232,7 +232,7 @@ $("lab-max").onclick = () => {
   resetMeasurement();
   updateControls();
 };
-// Evolves every equipped base weapon: maxes it and grants the paired passive if missing.
+// Evolves every equipped base weapon: maxes it and grants the paired passive at max.
 $("lab-evolve").onclick = () => {
   const names = [];
   for (const w of game.weapons) {
@@ -240,10 +240,11 @@ $("lab-evolve").onclick = () => {
     if (def.evolved) continue;
     w.level = def.max;
     const requires = BY_ID[def.evolution].requires;
-    if (!(game.passives[requires] >= 1)) {
-      game.passives[requires] = 1;
+    const need = PASSIVES.find((p) => p.id === requires).max;
+    if ((game.passives[requires] || 0) < need) {
+      game.passives[requires] = need;
       const input = $("lab-passives").querySelector(`[data-passive="${requires}"]`);
-      if (input) { input.value = 1; input.previousElementSibling.textContent = "1"; }
+      if (input) { input.value = need; input.previousElementSibling.textContent = String(need); }
     }
     if (game.evolve(def.id)) names.push(BY_ID[w.id].name);
   }
