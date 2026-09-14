@@ -38,7 +38,7 @@ export function encounterBudget(time, seasonDuration, season, boss = false) {
     // Slightly slower replenishment leaves room to read the boss's attacks.
     interval: (a[1] + (b[1] - a[1]) * blend) * (boss ? 1.35 : 1),
     cap: Math.round(a[2] + (b[2] - a[2]) * blend),
-    boarCap: [0, 2, 6, 8][season],
+    boarCap: [0, 2, 10, 16][season],
     mushroomCap: mushroomReady
       ? season === 0
         ? t < 180

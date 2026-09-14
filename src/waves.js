@@ -1,6 +1,6 @@
 import { WORLD } from './data.js';
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-export const waveLabel = { surround:'포위 접근 · 약한 뱀 무리를 뚫으세요', bats:'박쥐 횡단 · 비행 경로를 확인하세요', mushrooms:'버섯 포위 · 사수를 처치해 통로를 여세요' };
+export const waveLabel = { boars:'멧돼지 포위 · 약한 뱀 구간을 뚫으세요', surround:'포위 접근 · 약한 뱀 무리를 뚫으세요', bats:'박쥐 횡단 · 비행 경로를 확인하세요', mushrooms:'버섯 포위 · 사수를 처치해 통로를 여세요' };
 
 export function bossWavePressure(g) {
   const bosses=g.enemies.filter(e=>e.type==='boss'&&e.hp>0);
@@ -24,8 +24,10 @@ export function planWave(g, kind) {
     x:clamp(g.player.x + move.x*playerSpeed*(delay+flightTime),35,WORLD-35),
     y:clamp(g.player.y + move.y*playerSpeed*(delay+flightTime),35,WORLD-35),
   } : {x:g.player.x,y:g.player.y};
-  const rotation = kind === 'bats' && (move.x || move.y)
+  let rotation = kind === 'bats' && (move.x || move.y)
     ? Math.atan2(move.y,move.x)+Math.PI/2 : g.random()*Math.PI*2;
+  if (kind !== "bats" && Math.min(g.player.x,g.player.y,WORLD-g.player.x,WORLD-g.player.y)<400)
+    rotation=Math.atan2(WORLD/2-g.player.y,WORLD/2-g.player.x)-Math.PI*0.18;
   const points = [];
   const radius = Math.max(310,playerSpeed*delay+90)+g.season*10;
   if (kind === 'bats') {
@@ -39,31 +41,24 @@ export function planWave(g, kind) {
         const offset=(i-(count-1)/2)*30;
         const x=center.x+Math.cos(a)*flightSpeed*flightTime-Math.sin(a)*offset;
         const y=center.y+Math.sin(a)*flightSpeed*flightTime+Math.cos(a)*offset;
-        if(x<30||y<30||x>WORLD-30||y>WORLD-30) continue;
         points.push({x,y,type:'bat',heading:a+Math.PI,flightSpeed,laneOffset:offset});
       }
     }
   } else {
-    // Keep the player inside the perimeter even with maximum movement speed.
-    // At world edges clip the circle, using the boundary as part of the enclosure.
+    // Keep the full circle outside the arena too: edges are not free exits.
     const count=Math.min(Math.ceil(Math.PI*2*radius/42),g.encounter().cap-1);
-    const angles=Array.from({length:count},(_,i)=>rotation+i*Math.PI*2/count);
-    for(const edge of [35,WORLD-35]) {
-      const x=(edge-center.x)/radius,y=(edge-center.y)/radius;
-      if(Math.abs(x)<1) {const a=Math.acos(x);angles.push(a,-a);}
-      if(Math.abs(y)<1) {const a=Math.asin(y);angles.push(a,Math.PI-a);}
-    }
-    angles.sort((a,b)=>((a-rotation+Math.PI*4)%(Math.PI*2))-((b-rotation+Math.PI*4)%(Math.PI*2)));
-    for(const a of angles) {
-      const x=center.x+Math.cos(a)*radius,y=center.y+Math.sin(a)*radius;
-      if(x<35-1e-6||y<35-1e-6||x>WORLD-35+1e-6||y>WORLD-35+1e-6) continue;
-      if(points.some(p=>Math.hypot(p.x-x,p.y-y)<1)) continue;
-      points.push({x:clamp(x,35,WORLD-35),y:clamp(y,35,WORLD-35)});
+    for(let i=0;i<count;i++) {
+      const a=rotation+i*Math.PI*2/count;
+      points.push({x:center.x+Math.cos(a)*radius,y:center.y+Math.sin(a)*radius});
     }
     const weakCount=Math.max(3,Math.ceil(points.length*0.2));
+    // Sentries hold position for the whole wave, so they must stand where the player can reach them.
+    const inside=p=>p.x>=35&&p.y>=35&&p.x<=WORLD-35&&p.y<=WORLD-35;
+    let reachable=0;
     points.forEach((p,i)=>{
       p.weak=i<weakCount;
-      p.type=p.weak?'snake':kind==='mushrooms'&&i%4===0?'mushroom':g.season>0&&i%5===0?'boar':'snake';
+      const sentry=kind==='mushrooms'&&!p.weak&&inside(p)&&reachable++%4===0;
+      p.type=p.weak?'snake':kind==='boars'&&i%2===0?'boar':sentry?'mushroom':g.season>0&&i%5===0?'boar':'snake';
     });
   }
   return {kind,points,center,radius,delay};
@@ -93,19 +88,22 @@ export function updateWaves(g, dt, budget) {
       if(Math.hypot(point.x-g.player.x,point.y-g.player.y)<65) continue;
       const mushrooms=g.enemies.filter(e=>e.type==='mushroom'&&e.hp>0&&!e.escaped).length;
       const boars=g.enemies.filter(e=>e.type==='boar'&&e.hp>0&&!e.escaped).length;
-      const type=(point.type==='mushroom'&&mushrooms>=budget.mushroomCap)||(point.type==='boar'&&boars>=budget.boarCap)?'snake':point.type;
+      const type=(point.type==='mushroom'&&mushrooms>=budget.mushroomCap)||(point.type==='boar'&&boars>=budget.boarCap+(wave.kind==='boars'?12:0))?'snake':point.type;
       const e=g.spawn(type);
       Object.assign(e,{x:point.x,y:point.y});
       if(point.type==='bat') {
+        // Crossing flocks pass through and leave.
         e.heading=point.heading;
         e.waveFlightSpeed=point.flightSpeed;
         e.hp*=1.25; e.maxHp=e.hp;
+        e.waveLife=10;
       } else {
+        // Ring formations stay and become ordinary enemies once they close in,
+        // so breaking out and killing them is the reward.
         if(point.weak) {e.hp*=0.55;e.maxHp=e.hp;}
         e.formationCenter={...g.waveCenter};
         if(type==='mushroom') e.waveSentry=true;
       }
-      e.waveLife=wave.kind==='bats'?10:24;
     }
     g.wavePending=null;
     g.waveRestUntil=g.time+pressure.rest;
@@ -114,7 +112,7 @@ export function updateWaves(g, dt, budget) {
     return;
   }
   if(g.waveClock>0) return;
-  const sequence=g.season===0?['surround']:['surround','bats','mushrooms','bats'];
+  const sequence=g.season===0?['surround']:g.season===3?['boars','bats','mushrooms','bats']:['surround','bats','mushrooms','bats'];
   const kind=sequence[g.waveIndex%sequence.length];
   const wave=planWave(g,kind);
   if(kind==='mushrooms' && (g.year===3 || g.mode==='hell' || pressure.stage>=2)) {

@@ -16,6 +16,9 @@ import {
   xpRequired,
 } from "./data.js";
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+// How far past the arena edge knockback may push an enemy. Kept well inside the
+// off-screen "absent" threshold so edge fights never lose enemies or kills.
+const EDGE_BAND = 120;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const angle = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
 const diff = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -323,6 +326,8 @@ export class Game {
     const p = this.player;
     let x = clamp(p.x + Math.cos(a) * radius, 35, WORLD - 35),
       y = clamp(p.y + Math.sin(a) * radius, 35, WORLD - 35);
+    // Ordinary spawns stay inside the arena and off screen (genre convention);
+    // edge pressure comes from formation waves, which ignore the boundary.
     for (
       let tries = 0;
       tries < 24 &&
@@ -393,8 +398,10 @@ export class Game {
       });
     if (knock && e.type !== "boss") {
       const a = angle(this.player, e);
-      e.x = clamp(e.x + Math.cos(a) * knock, 20, WORLD - 20);
-      e.y = clamp(e.y + Math.sin(a) * knock, 20, WORLD - 20);
+      // Knockback may cross the arena edge, but never far enough to make the
+      // enemy count as absent or drop rewards out of reach.
+      e.x = clamp(e.x + Math.cos(a) * knock, -EDGE_BAND, WORLD + EDGE_BAND);
+      e.y = clamp(e.y + Math.sin(a) * knock, -EDGE_BAND, WORLD + EDGE_BAND);
     }
     if (e.hp <= 0) {
       this.kills++;
@@ -402,17 +409,20 @@ export class Game {
       this.runStats.enemies[e.type] = (this.runStats.enemies[e.type] || 0) + 1;
       this.effect("burst", e, { color, life: 0.3, r: e.r + 6 });
       if (e.type === "boss" || this.sandbox) return;
+      // Rewards from enemies killed outside the arena land where the player can reach them.
+      const dropX = clamp(e.x, 40, WORLD - 40),
+        dropY = clamp(e.y, 40, WORLD - 40);
       this.drops.push({
-        x: e.x,
-        y: e.y,
+        x: dropX,
+        y: dropY,
         value: e.xp * (e.elite ? 8 : 1),
         type: "xp",
         pull: false,
       });
       if (e.elite || this.random() < 0.016) {
         this.drops.push({
-          x: e.x + 10,
-          y: e.y,
+          x: clamp(dropX + 10, 40, WORLD - 40),
+          y: dropY,
           type: ["magnet", "heal", "power"][Math.floor(this.random() * 3)],
           value: 8,
           pull: false,
@@ -1070,7 +1080,7 @@ export class Game {
       // A fixed flight line: moving aside works; the flock never homes back in.
       direction = e.heading;
       speed = (e.waveFlightSpeed || e.speed * 2.5) * (1 - e.slow);
-      if (e.age > 12 || e.x < 0 || e.y < 0 || e.x > WORLD || e.y > WORLD)
+      if (e.age > 12)
         e.escaped = true;
     } else if (e.attack) {
       const attack = e.attack;
@@ -1145,12 +1155,17 @@ export class Game {
       if (dist(e, e.formationCenter) < 40) e.formationCenter = null;
       else direction = angle(e, e.formationCenter);
     }
+    // Sentries hold their post until the siege stance ends, then join the chase.
+    if (e.waveSentry && e.age >= 40) e.waveSentry = false;
     if (e.waveSentry) speed = 0;
     if (e.type === "mushroom" && e.age >= 40) speed *= 1.6;
     e.heading = direction;
     e.x += Math.cos(direction) * speed * dt;
     e.y += Math.sin(direction) * speed * dt;
-    if (e.type !== "bat") {
+    // Formation members close in from beyond the boundary so edges are not free
+    // exits; once inside they are ordinary enemies and stay inside like everyone else.
+    const crossesEdge = e.type === "bat" || (e.formationCenter && e.type !== "mushroom");
+    if (!crossesEdge) {
       e.x = clamp(e.x, 25, WORLD - 25);
       e.y = clamp(e.y, 25, WORLD - 25);
     }

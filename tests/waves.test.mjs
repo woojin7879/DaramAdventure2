@@ -32,12 +32,13 @@ test('opening stays quiet, then gives a warning before a breakable surround',()=
   assert.ok(g.enemies[0].hp<g.enemies[10].hp);
   assert.ok(g.waveRestUntil>g.time);
 });
-test('formations stay in the world without stacked edge positions',()=>{
+test('formations retain full off-arena rows without stacked edge positions',()=>{
   const g=fresh();g.player.x=g.player.y=35;
   for(const kind of ['surround','bats','mushrooms']) {
     const p=planWave(g,kind).points;
     assert.equal(new Set(p.map(e=>`${e.x},${e.y}`)).size,p.length);
-    assert.ok(p.every(e=>e.x>=30&&e.y>=30&&e.x<=2370&&e.y<=2370));
+    assert.ok(p.some(e=>e.x<0||e.y<0));
+    assert.ok(p.every(e=>Number.isFinite(e.x)&&Number.isFinite(e.y)));
   }
 });
 test('bats have opposing flight lanes and third-year mushroom waves combine attacks',()=>{
@@ -55,10 +56,15 @@ test('warning positions do not spawn on a player who moves into them',()=>{
   updateWaves(g,2.6,g.encounter());
   assert.ok(g.enemies.every(e=>Math.hypot(e.x-g.player.x,e.y-g.player.y)>=65));
 });
-test('wave enemies expire without rewards and sentries stay in place',()=>{
-  const g=fresh();const e=g.spawn('mushroom');e.waveSentry=true;e.waveLife=24;
+test('crossing bats expire without rewards; ring members and sentries stay as ordinary enemies',()=>{
+  const g=fresh();const bat=g.spawn('bat');bat.waveLife=0.01;
+  g.updateEnemy(bat,0.05);assert.equal(bat.escaped,true);assert.equal(g.drops.length,0);
+  g.time=400;g.season=1;updateWaves(g,0.05,g.encounter());updateWaves(g,2.6,g.encounter());
+  const ring=g.enemies.filter(e=>e.type!=='bat');
+  assert.ok(ring.length>0);assert.ok(ring.every(e=>e.waveLife==null&&e.formationCenter));
+  const e=g.spawn('mushroom');e.waveSentry=true;e.skillClock=99;
   const {x,y}=e;g.updateEnemy(e,0.05);assert.equal(e.x,x);assert.equal(e.y,y);
-  e.waveLife=0.01;g.updateEnemy(e,0.05);assert.equal(e.escaped,true);assert.equal(g.drops.length,0);
+  e.age=40;g.updateEnemy(e,0.05);assert.equal(e.waveSentry,false);assert.ok(e.x!==x||e.y!==y);
 });
 test('upgraded acorns and boomerangs hit a small distant target',()=>{
   for(const id of ['acorn','boomerang']) {

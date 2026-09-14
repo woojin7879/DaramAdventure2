@@ -1370,12 +1370,6 @@ kbd {
   color: var(--muted);
   font-size: 12px;
 }
-[data-kind="result"] .modal-actions {
-  position: sticky;
-  bottom: 0;
-  padding: 16px 0;
-  background: #12241ff5;
-}
 @media (max-width: 600px) {
   .story-scene {
     aspect-ratio: 1.7;
